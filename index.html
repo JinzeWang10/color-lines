@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>彩球连珠 · Color Lines</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="logo">彩球连珠 <span>Color Lines</span></h1>
+      <nav class="tabs">
+        <button class="tab active" data-view="play">游戏</button>
+        <button class="tab" data-view="review">复盘</button>
+      </nav>
+    </header>
+
+    <!-- ====== 游戏视图 ====== -->
+    <main id="view-play" class="view active">
+      <section class="board-wrap">
+        <div id="board" class="board" aria-label="棋盘"></div>
+        <div id="status" class="status"></div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="panel score-panel">
+          <div class="score-label">得分</div>
+          <div id="score" class="score-value">0</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">下一批</div>
+          <div id="next-preview" class="next-preview"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">设置</div>
+          <label class="field">
+            连线长度
+            <select id="opt-line">
+              <option value="5">5 (经典 Lines 98)</option>
+              <option value="4">4 (你描述的版本)</option>
+            </select>
+          </label>
+          <label class="field">
+            棋盘
+            <select id="opt-size">
+              <option value="9">9 × 9</option>
+              <option value="7">7 × 7</option>
+              <option value="11">11 × 11</option>
+            </select>
+          </label>
+          <label class="field">
+            颜色数
+            <select id="opt-colors">
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7" selected>7</option>
+            </select>
+          </label>
+          <label class="field">
+            每步生成
+            <select id="opt-spawn">
+              <option value="3" selected>3</option>
+              <option value="2">2</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <button id="btn-new" class="btn btn-primary">开新局</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">本局</div>
+          <div class="kv"><span>步数</span><b id="moves">0</b></div>
+          <div class="kv"><span>种子</span><b id="seed" class="mono">—</b></div>
+          <button id="btn-export-cur" class="btn">导出本局 JSON</button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ====== 复盘视图 ====== -->
+    <section id="view-review" class="view">
+      <div class="review-layout">
+        <aside class="sessions-panel">
+          <div class="panel-title">
+            历史对局
+            <span class="muted" id="session-count"></span>
+          </div>
+          <div id="session-list" class="session-list"></div>
+          <div class="review-actions">
+            <button id="btn-export-all" class="btn">导出全部</button>
+            <button id="btn-clear-all" class="btn btn-danger">清空记录</button>
+          </div>
+        </aside>
+
+        <div class="replay-main">
+          <div class="board-wrap">
+            <div id="replay-board" class="board"></div>
+            <div id="replay-status" class="status"></div>
+          </div>
+          <div class="replay-controls">
+            <button id="rp-first" class="btn">⏮</button>
+            <button id="rp-prev" class="btn">◀ 上一手</button>
+            <button id="rp-play" class="btn btn-primary">▶ 播放</button>
+            <button id="rp-next" class="btn">下一手 ▶</button>
+            <button id="rp-last" class="btn">⏭</button>
+            <input id="rp-slider" type="range" min="0" max="0" value="0" class="slider" />
+            <span id="rp-frame" class="mono">0 / 0</span>
+          </div>
+        </div>
+
+        <aside class="log-panel">
+          <div class="panel-title">事件流</div>
+          <div id="event-log" class="event-log"></div>
+        </aside>
+      </div>
+    </section>
+
+    <script src="js/rng.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/recorder.js"></script>
+    <script src="js/replay.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
