@@ -201,5 +201,28 @@ lim4.locked = true;
 lim4._tick();
 ok(lim4.state.seconds <= 1 && !lim4.locked, '跨天清零并解除锁定');
 
+// ---- 提示引擎 hint.js ----
+require(path.join(base, 'hint.js'));
+
+// 15. 有"差一个就成线"的局面时，提示应给出能立即消除的一手
+let gh = new CL.Game({ size: 6, colors: 4, lineLength: 4, spawnCount: 3, seed: 1 });
+gh.cells = new Array(36).fill(0);
+// (0,0)(0,1)(0,2) 三个红, 第四个红在 (2,3), 旁边 (0,3) 空 -> 把 (2,3) 走到 (0,3) 即成 4 连
+[gh.idx(0, 0), gh.idx(0, 1), gh.idx(0, 2)].forEach((i) => (gh.cells[i] = 1));
+gh.cells[gh.idx(2, 3)] = 1;
+let bm = CL.hint.bestMove(gh);
+ok(bm && bm.clears >= 1, '提示给出能立即消除的一手');
+ok(bm && bm.to === gh.idx(0, 3), '提示的落点正确 (0,3)');
+
+// 16. 没有立即消除时，提示倾向把同色靠拢（潜力更高），且返回合法可达走法
+let gh2 = new CL.Game({ size: 6, colors: 4, lineLength: 4, seed: 2 });
+gh2.cells = new Array(36).fill(0);
+gh2.cells[gh2.idx(0, 0)] = 2;
+gh2.cells[gh2.idx(0, 1)] = 2;
+gh2.cells[gh2.idx(5, 5)] = 2; // 一个孤立同色，应被建议挪近
+let bm2 = CL.hint.bestMove(gh2);
+ok(bm2 && gh2.cells[bm2.from] > 0 && gh2.cells[bm2.to] === 0, '提示返回合法走法(从球到空格)');
+ok(bm2 && gh2.reachableEmpties(bm2.from).includes(bm2.to), '提示的目标确实可达');
+
 console.log(`\n通过 ${pass} / ${pass + fail}`);
 process.exit(fail ? 1 : 0);

@@ -130,27 +130,31 @@
       return null;
     }
 
-    /**
-     * 扫描整盘，找出所有 >= lineLength 的同色连线，返回要消除的 cell 集合。
-     * 简单稳妥：9x9 全盘扫描成本可忽略。
-     */
+    /** 扫描当前棋盘的连线。 */
     findLines() {
+      return this.linesOn(this.cells);
+    }
+
+    /**
+     * 扫描任意棋盘数组，找出所有 >= lineLength 的同色连线，返回要消除的 cell 集合。
+     * 抽出来是为了让提示引擎能在"假想棋盘"上复用同一套判定。
+     */
+    linesOn(cells) {
       const toClear = new Set();
       const size = this.size;
       for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
-          const color = this.cells[this.idx(r, c)];
+          const color = cells[this.idx(r, c)];
           if (color === 0) continue;
           for (const [dr, dc] of DIRECTIONS) {
             // 仅在"线的起点"处统计，避免重复
             const pr = r - dr;
             const pc = c - dc;
-            if (this.inBounds(pr, pc) && this.cells[this.idx(pr, pc)] === color) continue;
-            // 向前数同色
+            if (this.inBounds(pr, pc) && cells[this.idx(pr, pc)] === color) continue;
             const run = [];
             let rr = r;
             let cc = c;
-            while (this.inBounds(rr, cc) && this.cells[this.idx(rr, cc)] === color) {
+            while (this.inBounds(rr, cc) && cells[this.idx(rr, cc)] === color) {
               run.push(this.idx(rr, cc));
               rr += dr;
               cc += dc;
@@ -160,6 +164,29 @@
         }
       }
       return [...toClear];
+    }
+
+    /** 从 from（一个球）出发，沿空格能到达的所有空格 index。 */
+    reachableEmpties(from) {
+      const res = [];
+      const visited = new Array(this.cells.length).fill(false);
+      const queue = [from];
+      visited[from] = true;
+      while (queue.length) {
+        const cur = queue.shift();
+        const [r, c] = this.rc(cur);
+        for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (!this.inBounds(nr, nc)) continue;
+          const ni = this.idx(nr, nc);
+          if (visited[ni] || this.cells[ni] !== 0) continue;
+          visited[ni] = true;
+          res.push(ni);
+          queue.push(ni);
+        }
+      }
+      return res;
     }
 
     /** 消除指定 cell，并计分。返回 clear 事件（含本次得分）。 */

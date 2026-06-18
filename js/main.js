@@ -126,6 +126,27 @@
     });
   }
 
+  function showHint() {
+    const g = play.game;
+    if (!g || g.over || play.animating || limit.isLocked()) return;
+    limit.bump();
+    const best = global.CL.hint.bestMove(g);
+    if (!best) {
+      setStatus('暂时没有可走的提示。');
+      return;
+    }
+    // 帮玩家选好球，直接点高亮空格即可走子
+    play.selected = best.from;
+    ui.paint(play.cells, g.cells, { selected: best.from, highlight: new Set([best.to]) });
+    sound.select();
+    setStatus(
+      best.clears
+        ? '建议这一手能消除！点高亮空格走子。'
+        : '建议：把跳动的球移到高亮空格。',
+      'win'
+    );
+  }
+
   function undo() {
     if (!play.undoSnapshot || play.animating || limit.isLocked()) return;
     limit.bump();
@@ -410,6 +431,7 @@
     });
 
     $('btn-new').addEventListener('click', newGame);
+    $('btn-hint').addEventListener('click', showHint);
     $('btn-undo').addEventListener('click', undo);
     $('btn-sound').addEventListener('click', () => {
       sound.toggleMute();
@@ -460,6 +482,7 @@
       if ((e.ctrlKey && e.key === 'z') || e.key === 'u') {
         if ($('view-play').classList.contains('active')) undo();
       }
+      if (e.key === 'h' && $('view-play').classList.contains('active')) showHint();
       if ($('view-review').classList.contains('active')) {
         if (e.key === 'ArrowRight') {
           stopAutoplay();
