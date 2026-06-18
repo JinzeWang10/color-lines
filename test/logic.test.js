@@ -146,5 +146,60 @@ ok(g5.score === snap.score, '撤销后分数还原');
 let redo = g5.move(from5, to5);
 ok(JSON.stringify(g5.cells) === afterFirst, '撤销后重做结果一致（随机状态已还原）');
 
+// ---- 防沉迷 limit.js ----
+require(path.join(base, 'limit.js'));
+// node 没有 localStorage，给个内存桩
+global.localStorage = {
+  _d: {},
+  getItem(k) {
+    return k in this._d ? this._d[k] : null;
+  },
+  setItem(k, v) {
+    this._d[k] = String(v);
+  },
+  removeItem(k) {
+    delete this._d[k];
+  },
+};
+
+// 11. 计时累加 + 提醒 + 锁定
+let warned = null;
+let locked = false;
+let lim = new CL.PlayLimit({ dailyLimitSec: 5, warnRemainingSec: 2, idlePauseSec: 9999 });
+lim.isActive = () => true;
+lim.onWarn = (rem) => (warned = rem);
+lim.onLock = () => (locked = true);
+lim.bump();
+for (let i = 0; i < 5; i++) lim._tick(); // 手动推进 5 秒
+ok(lim.state.seconds === 5, '活跃时每秒累加');
+ok(warned === 2, '剩余 <= 阈值时触发一次提醒');
+ok(locked === true && lim.isLocked(), '达上限锁定');
+
+// 12. 非活跃不计时
+localStorage._d = {};
+let lim2 = new CL.PlayLimit({ dailyLimitSec: 100 });
+lim2.isActive = () => false;
+lim2.bump();
+lim2._tick();
+lim2._tick();
+ok(lim2.state.seconds === 0, '不在游戏页/不可见时不计时');
+
+// 13. 空闲超时暂停
+localStorage._d = {};
+let lim3 = new CL.PlayLimit({ dailyLimitSec: 100, idlePauseSec: 60 });
+lim3.isActive = () => true;
+lim3.lastActivity = Date.now() - 120 * 1000; // 2 分钟没动
+lim3._tick();
+ok(lim3.state.seconds === 0, '空闲超过阈值暂停计时');
+
+// 14. 跨天重置
+let lim4 = new CL.PlayLimit({ dailyLimitSec: 100 });
+lim4.isActive = () => true;
+lim4.bump();
+lim4.state = { date: '2000-1-1', seconds: 99 };
+lim4.locked = true;
+lim4._tick();
+ok(lim4.state.seconds <= 1 && !lim4.locked, '跨天清零并解除锁定');
+
 console.log(`\n通过 ${pass} / ${pass + fail}`);
 process.exit(fail ? 1 : 0);

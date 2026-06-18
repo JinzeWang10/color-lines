@@ -89,6 +89,16 @@
         </div>
       </aside>
 
+      <!-- 防沉迷锁定遮罩（不可关闭） -->
+      <div id="lock-overlay" class="overlay lock-overlay hidden">
+        <div class="overlay-card">
+          <div class="lock-emoji">🌙</div>
+          <div class="overlay-title">今天玩得够久啦</div>
+          <div class="lock-text" id="lock-text"></div>
+          <div class="lock-countdown" id="lock-countdown"></div>
+        </div>
+      </div>
+
       <!-- 结算弹层 -->
       <div id="overlay" class="overlay hidden">
         <div class="overlay-card">
@@ -143,6 +153,7 @@
     </section>
 
     <script src="js/rng.js"></script>
+    <script src="js/limit.js"></script>
     <script src="js/sound.js"></script>
     <script src="js/game.js"></script>
     <script src="js/recorder.js"></script>

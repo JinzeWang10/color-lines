@@ -510,6 +510,25 @@ body {
   padding: 14px;
 }
 
+/* ---- 防沉迷锁定遮罩 ---- */
+.lock-overlay {
+  z-index: 100;
+  background: rgba(8, 11, 16, 0.92);
+}
+.lock-emoji {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+.lock-text {
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 14px 0;
+}
+.lock-countdown {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* ---- 复盘看板 ---- */
 .agg-stats {
   margin-bottom: 16px;

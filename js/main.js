@@ -4,8 +4,13 @@
 (function (global) {
   'use strict';
 
-  const { Game, Recorder, ui, buildFrames, sound, stats } = global.CL;
+  const { Game, Recorder, ui, buildFrames, sound, stats, PlayLimit } = global.CL;
   const $ = (id) => document.getElementById(id);
+
+  // 防沉迷计时器（仅在游戏页 + 页面可见时累计）
+  const limit = new PlayLimit();
+  limit.isActive = () =>
+    $('view-play').classList.contains('active') && document.visibilityState === 'visible';
 
   // ===================== 游戏视图 =====================
   const play = {
@@ -62,6 +67,11 @@
   function onCellClick(i) {
     const g = play.game;
     if (!g || g.over || play.animating) return;
+    if (limit.isLocked()) {
+      showLock();
+      return;
+    }
+    limit.bump();
     sound.unlock();
 
     // 点到有球：选中（或切换选中）
@@ -117,7 +127,8 @@
   }
 
   function undo() {
-    if (!play.undoSnapshot || play.animating) return;
+    if (!play.undoSnapshot || play.animating || limit.isLocked()) return;
+    limit.bump();
     play.game.restore(play.undoSnapshot);
     play.recorder.truncateTo(play.undoEventCount);
     play.undoSnapshot = null;
@@ -198,6 +209,23 @@
 
   function hideOverlay() {
     $('overlay').classList.add('hidden');
+  }
+
+  // ---- 防沉迷锁定 ----
+  function fmtCountdown(ms) {
+    const totalMin = Math.ceil(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return h ? `${h} 小时 ${m} 分钟` : `${m} 分钟`;
+  }
+
+  function showLock() {
+    $('lock-text').innerHTML = `已经玩了 ${limit.limitMinutes()} 分钟，休息一下眼睛，<br>明天再来玩吧！`;
+    $('lock-countdown').textContent = `距离明天还有 ${fmtCountdown(limit.msUntilReset())}`;
+    hideOverlay();
+    $('lock-overlay').classList.remove('hidden');
+    play.selected = null;
+    setStatus('今天的游戏时间到啦，明天再来。', 'over');
   }
 
   // ===================== 复盘视图 =====================
@@ -449,10 +477,25 @@
     });
   }
 
+  function setupLimit() {
+    limit.onWarn = (rem) => {
+      setStatus(`再玩 ${Math.ceil(rem / 60)} 分钟就要休息啦，注意时间~`, 'over');
+    };
+    limit.onLock = () => showLock();
+    limit.onTick = () => {
+      if (limit.isLocked() && !$('lock-overlay').classList.contains('hidden')) {
+        $('lock-countdown').textContent = `距离明天还有 ${fmtCountdown(limit.msUntilReset())}`;
+      }
+    };
+    limit.start();
+    if (limit.isLocked()) showLock();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     bind();
     updateSoundBtn();
     clearReplay();
     newGame();
+    setupLimit();
   });
 })(window);
