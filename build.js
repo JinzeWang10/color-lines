@@ -24,9 +24,15 @@ html = html.replace(/<script\s+src="([^"]+)"><\/script>/g, (m, src) => {
 
 const outDir = path.join(root, 'dist');
 fs.mkdirSync(outDir, { recursive: true });
-const outFile = path.join(outDir, 'color-lines.html');
-fs.writeFileSync(outFile, html, 'utf8');
+// 两个同样内容的单文件：
+//  - color-lines.html：发给爸爸双击玩
+//  - index.html：直接丢到服务器目录即可访问
+const giftFile = path.join(outDir, 'color-lines.html');
+const siteFile = path.join(outDir, 'index.html');
+fs.writeFileSync(giftFile, html, 'utf8');
+fs.writeFileSync(siteFile, html, 'utf8');
 
-const kb = (fs.statSync(outFile).size / 1024).toFixed(1);
-console.log(`已生成单文件: ${outFile} (${kb} KB)`);
-console.log('把它发给爸爸，双击就能玩。');
+const kb = (fs.statSync(giftFile).size / 1024).toFixed(1);
+console.log(`已生成单文件 (${kb} KB):`);
+console.log(`  ${giftFile}   ← 发给爸爸，双击就能玩`);
+console.log(`  ${siteFile}   ← 丢到服务器目录即可访问`);
