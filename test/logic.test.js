@@ -116,5 +116,35 @@ ok(
   '复盘末帧 == 实时棋盘'
 );
 
+// 9. rng getState/setState 可复现
+let rng = CL.createRng(123);
+rng.next();
+let st = rng.getState();
+let a = rng.next();
+rng.setState(st);
+let b = rng.next();
+ok(a === b, 'rng setState 可复现同一序列');
+
+// 10. 撤销：move 前 fullSnapshot，restore 后棋盘/分数/随机状态完全还原，再走一步结果一致
+let g5 = new CL.Game({ size: 7, colors: 5, lineLength: 4, spawnCount: 3, seed: 555 });
+g5.initialSpawn(5);
+let from5 = g5.cells.findIndex((x) => x > 0);
+let to5 = -1;
+for (let t = 0; t < 49; t++) {
+  if (g5.cells[t] === 0 && g5.findPath(from5, t)) {
+    to5 = t;
+    break;
+  }
+}
+let snap = g5.fullSnapshot();
+let firstMove = g5.move(from5, to5);
+let afterFirst = JSON.stringify(g5.cells);
+g5.restore(snap);
+ok(JSON.stringify(g5.cells) === JSON.stringify(snap.cells), '撤销后棋盘还原');
+ok(g5.score === snap.score, '撤销后分数还原');
+// 重做同一步，结果应与第一次完全一致（含随机生成的新球）
+let redo = g5.move(from5, to5);
+ok(JSON.stringify(g5.cells) === afterFirst, '撤销后重做结果一致（随机状态已还原）');
+
 console.log(`\n通过 ${pass} / ${pass + fail}`);
 process.exit(fail ? 1 : 0);

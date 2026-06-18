@@ -24,12 +24,24 @@
   }
 
   function createRng(seed) {
-    const next = mulberry32(seed);
+    let state = seed >>> 0;
+    // 内联 mulberry32，把内部状态暴露出来，方便撤销时回滚到上一步的随机状态。
+    const next = () => {
+      state |= 0;
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
     return {
       seed,
       next, // [0,1)
       int: (n) => Math.floor(next() * n), // [0, n)
       pick: (arr) => arr[Math.floor(next() * arr.length)],
+      getState: () => state >>> 0,
+      setState: (s) => {
+        state = s >>> 0;
+      },
     };
   }
 

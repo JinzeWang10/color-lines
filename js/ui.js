@@ -9,7 +9,7 @@
     container.innerHTML = '';
     container.style.gridTemplateColumns = `repeat(${size}, var(--cellsize))`;
     // 棋盘越大格子越小，保证整体不超屏
-    const cs = size <= 7 ? 56 : size <= 9 ? 52 : 42;
+    const cs = size <= 7 ? 62 : size <= 9 ? 56 : 46;
     container.style.setProperty('--cellsize', cs + 'px');
     const cells = [];
     for (let i = 0; i < size * size; i++) {

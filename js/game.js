@@ -28,7 +28,7 @@
     constructor(opts = {}) {
       this.size = opts.size || 9;
       this.colors = opts.colors || 7;
-      this.lineLength = opts.lineLength || 5;
+      this.lineLength = opts.lineLength || 4; // 默认 4 连，匹配爸爸玩的单机版
       this.spawnCount = opts.spawnCount || 3;
       this.seed = opts.seed != null ? opts.seed : global.CL.makeSeed();
       this.rng = global.CL.createRng(this.seed);
@@ -229,6 +229,26 @@
     /** 导出一个可序列化的棋盘快照（用于记录初始局面）。 */
     snapshot() {
       return this.cells.slice();
+    }
+
+    /** 完整状态快照（含随机状态），用于撤销。 */
+    fullSnapshot() {
+      return {
+        cells: this.cells.slice(),
+        score: this.score,
+        next: this.next.slice(),
+        over: this.over,
+        rngState: this.rng.getState(),
+      };
+    }
+
+    /** 从完整快照还原。 */
+    restore(snap) {
+      this.cells = snap.cells.slice();
+      this.score = snap.score;
+      this.next = snap.next.slice();
+      this.over = snap.over;
+      this.rng.setState(snap.rngState);
     }
   }
 

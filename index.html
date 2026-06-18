@@ -8,7 +8,10 @@
   </head>
   <body>
     <header class="topbar">
-      <h1 class="logo">彩球连珠 <span>Color Lines</span></h1>
+      <div>
+        <h1 class="logo">彩球连珠 <span>Color Lines</span></h1>
+        <div class="dedication" id="dedication">献给最棒的爸爸 · 父亲节快乐 ❤️</div>
+      </div>
       <nav class="tabs">
         <button class="tab active" data-view="play">游戏</button>
         <button class="tab" data-view="review">复盘</button>
@@ -26,6 +29,7 @@
         <div class="panel score-panel">
           <div class="score-label">得分</div>
           <div id="score" class="score-value">0</div>
+          <div class="best-row">最高分 <b id="best">0</b></div>
         </div>
 
         <div class="panel">
@@ -34,12 +38,19 @@
         </div>
 
         <div class="panel">
+          <div class="controls-row">
+            <button id="btn-undo" class="btn" disabled>↶ 撤销</button>
+            <button id="btn-sound" class="btn" title="音效开关">🔊 音效</button>
+          </div>
+        </div>
+
+        <div class="panel">
           <div class="panel-title">设置</div>
           <label class="field">
             连线长度
             <select id="opt-line">
-              <option value="5">5 (经典 Lines 98)</option>
-              <option value="4">4 (你描述的版本)</option>
+              <option value="4" selected>4 连消除</option>
+              <option value="5">5 连 (经典 Lines 98)</option>
             </select>
           </label>
           <label class="field">
@@ -72,16 +83,30 @@
         <div class="panel">
           <div class="panel-title">本局</div>
           <div class="kv"><span>步数</span><b id="moves">0</b></div>
+          <div class="kv"><span>消除</span><b id="cleared-count">0</b></div>
           <div class="kv"><span>种子</span><b id="seed" class="mono">—</b></div>
           <button id="btn-export-cur" class="btn">导出本局 JSON</button>
         </div>
       </aside>
+
+      <!-- 结算弹层 -->
+      <div id="overlay" class="overlay hidden">
+        <div class="overlay-card">
+          <div class="overlay-title" id="ov-title">本局结束</div>
+          <div class="overlay-score" id="ov-score">0</div>
+          <div class="overlay-badge hidden" id="ov-best">🏆 新纪录！</div>
+          <div class="overlay-stats" id="ov-stats"></div>
+          <div class="overlay-msg" id="ov-msg"></div>
+          <button id="ov-again" class="btn btn-primary btn-big">再来一局</button>
+        </div>
+      </div>
     </main>
 
     <!-- ====== 复盘视图 ====== -->
     <section id="view-review" class="view">
       <div class="review-layout">
         <aside class="sessions-panel">
+          <div id="agg-stats" class="agg-stats"></div>
           <div class="panel-title">
             历史对局
             <span class="muted" id="session-count"></span>
@@ -110,6 +135,7 @@
         </div>
 
         <aside class="log-panel">
+          <div id="session-stats" class="session-stats"></div>
           <div class="panel-title">事件流</div>
           <div id="event-log" class="event-log"></div>
         </aside>
@@ -117,9 +143,11 @@
     </section>
 
     <script src="js/rng.js"></script>
+    <script src="js/sound.js"></script>
     <script src="js/game.js"></script>
     <script src="js/recorder.js"></script>
     <script src="js/replay.js"></script>
+    <script src="js/stats.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/main.js"></script>
   </body>

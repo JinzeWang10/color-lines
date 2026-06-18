@@ -68,6 +68,18 @@
       this.save();
     }
 
+    /** 撤销：把事件流回退到指定长度，并重算步数。 */
+    truncateTo(eventCount) {
+      if (!this.session) return;
+      this.session.events.length = Math.max(0, eventCount);
+      this.session.moveCount = this.session.events.filter((e) => e.type === 'move').length;
+      if (this.session.result === 'over') {
+        this.session.result = 'in_progress';
+        this.session.endedAt = null;
+      }
+      this.save();
+    }
+
     /** 玩家主动放弃/离开时调用。 */
     finalize(score, result) {
       if (!this.session) return;
@@ -111,6 +123,19 @@
 
     static clearAll() {
       localStorage.removeItem(STORAGE_KEY);
+    }
+
+    // ---- 最高分 ----
+    static getBest() {
+      return parseInt(localStorage.getItem('color-lines.best') || '0', 10);
+    }
+    /** 若超过历史最高则写入，返回是否破纪录。 */
+    static updateBest(score) {
+      if (score > Recorder.getBest()) {
+        localStorage.setItem('color-lines.best', String(score));
+        return true;
+      }
+      return false;
     }
 
     /** 导出单局为下载文件。 */

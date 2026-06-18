@@ -67,6 +67,11 @@ body {
   font-size: 13px;
   margin-left: 6px;
 }
+.dedication {
+  color: var(--c7);
+  font-size: 13px;
+  margin-top: 4px;
+}
 .tabs {
   display: flex;
   gap: 6px;
@@ -403,4 +408,162 @@ body {
   font-size: 13px;
   text-align: center;
   padding: 30px 10px;
+}
+
+/* ---- 最高分 / 控制 ---- */
+.best-row {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.best-row b {
+  color: var(--c3);
+  font-size: 16px;
+}
+.controls-row {
+  display: flex;
+  gap: 8px;
+}
+.controls-row .btn {
+  margin-top: 0;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ball {
+  width: 78%;
+  height: 78%;
+}
+
+/* ---- 结算弹层 ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 11, 16, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  backdrop-filter: blur(3px);
+}
+.overlay.hidden {
+  display: none;
+}
+.overlay-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  min-width: 320px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.overlay-title {
+  font-size: 18px;
+  color: var(--muted);
+}
+.overlay-score {
+  font-size: 64px;
+  font-weight: 800;
+  margin: 6px 0;
+  color: var(--accent);
+}
+.overlay-badge {
+  display: inline-block;
+  background: var(--c3);
+  color: #2b2300;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+}
+.overlay-badge.hidden {
+  display: none;
+}
+.overlay-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 18px 0;
+}
+.overlay-stats > div {
+  background: var(--panel-2);
+  border-radius: 10px;
+  padding: 12px;
+}
+.overlay-stats b {
+  display: block;
+  font-size: 22px;
+}
+.overlay-stats span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.overlay-msg {
+  color: var(--c7);
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+.btn-big {
+  font-size: 16px;
+  padding: 14px;
+}
+
+/* ---- 复盘看板 ---- */
+.agg-stats {
+  margin-bottom: 16px;
+}
+.agg-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+.agg-row > div {
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 10px 4px;
+}
+.agg-row b {
+  display: block;
+  font-size: 20px;
+  color: var(--accent);
+}
+.agg-row span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.agg-spark {
+  margin-top: 10px;
+  text-align: center;
+}
+.agg-spark .muted {
+  margin-top: 2px;
+}
+.spark {
+  display: block;
+  margin: 0 auto;
+}
+.session-stats {
+  margin-bottom: 14px;
+}
+.ss-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  text-align: center;
+}
+.ss-grid > div {
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 8px 4px;
+}
+.ss-grid b {
+  display: block;
+  font-size: 16px;
+}
+.ss-grid span {
+  color: var(--muted);
+  font-size: 11px;
 }
