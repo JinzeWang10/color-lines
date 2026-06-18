@@ -296,7 +296,7 @@
         <div class="si-top">
           <span>${dstr}</span>
           <span class="si-del" title="删除" data-del="${s.id}">✕</span>
-          <span class="si-score">${s.finalScore} 分</span>
+          <span class="si-score">${stats.sessionStats(s).score} 分</span>
         </div>
         <div class="si-meta">${s.settings.size}×${s.settings.size} · ${s.settings.lineLength}连 · ${s.moveCount} 步 · ${s.result === 'over' ? '已结束' : '未完'}</div>
       `;

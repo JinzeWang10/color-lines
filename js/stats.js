@@ -10,11 +10,13 @@
     let ballsCleared = 0;
     let biggestClear = 0;
     let clearTimes = 0;
+    let score = 0;
     for (const ev of session.events) {
       if (ev.type === 'move') moves++;
       else if (ev.type === 'clear') {
         ballsCleared += ev.count;
         clearTimes++;
+        score += ev.scoreGained || 0;
         if (ev.count > biggestClear) biggestClear = ev.count;
       }
     }
@@ -25,7 +27,8 @@
       durationMs = session.events[session.events.length - 1].t || 0;
     }
     return {
-      score: session.finalScore || 0,
+      // 直接从事件流累加，进行中的局也能正确显示，不依赖 finalScore
+      score,
       moves,
       ballsCleared,
       biggestClear,
@@ -43,7 +46,7 @@
     }
     // 按时间正序，趋势图从旧到新
     const ordered = sessions.slice().sort((a, b) => new Date(a.startedAt) - new Date(b.startedAt));
-    const scores = ordered.map((s) => s.finalScore || 0);
+    const scores = ordered.map((s) => sessionStats(s).score);
     const totalCleared = ordered.reduce((sum, s) => sum + sessionStats(s).ballsCleared, 0);
     const best = Math.max(...scores);
     const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);

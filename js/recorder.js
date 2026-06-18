@@ -59,9 +59,9 @@
         const stamped = Object.assign({ t }, ev);
         this.session.events.push(stamped);
         if (ev.type === 'move') this.session.moveCount += 1;
+        if (ev.type === 'clear') this.session.finalScore += ev.scoreGained || 0;
         if (ev.type === 'gameover') {
           this.session.result = 'over';
-          this.session.finalScore = ev.finalScore;
           this.session.endedAt = new Date().toISOString();
         }
       }
@@ -73,6 +73,10 @@
       if (!this.session) return;
       this.session.events.length = Math.max(0, eventCount);
       this.session.moveCount = this.session.events.filter((e) => e.type === 'move').length;
+      this.session.finalScore = this.session.events.reduce(
+        (sum, e) => sum + (e.type === 'clear' ? e.scoreGained || 0 : 0),
+        0
+      );
       if (this.session.result === 'over') {
         this.session.result = 'in_progress';
         this.session.endedAt = null;
