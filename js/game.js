@@ -28,7 +28,7 @@
     constructor(opts = {}) {
       this.size = opts.size || 9;
       this.colors = opts.colors || 7;
-      this.lineLength = opts.lineLength || 4; // 默认 4 连，匹配爸爸玩的单机版
+      this.lineLength = opts.lineLength || 5; // 默认 5 连（经典 Lines 98）
       this.spawnCount = opts.spawnCount || 3;
       this.seed = opts.seed != null ? opts.seed : global.CL.makeSeed();
       this.rng = global.CL.createRng(this.seed);
