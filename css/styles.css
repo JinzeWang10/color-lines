@@ -112,6 +112,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  max-width: 520px;
 }
 .board {
   display: grid;
@@ -120,11 +122,11 @@ body {
   padding: 12px;
   border-radius: var(--radius);
   border: 1px solid var(--line);
-  --cellsize: 52px;
+  width: 100%;
+  max-width: 520px;
 }
 .cell {
-  width: var(--cellsize);
-  height: var(--cellsize);
+  aspect-ratio: 1 / 1;
   background: var(--cell-empty);
   border-radius: 8px;
   display: flex;
@@ -585,4 +587,79 @@ body {
 .ss-grid span {
   color: var(--muted);
   font-size: 11px;
+}
+
+/* ============ 手机 / 窄屏适配 ============ */
+@media (max-width: 680px) {
+  .view {
+    padding: 12px;
+  }
+
+  /* 游戏页：棋盘在上，侧栏在下 */
+  #view-play {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .board-wrap {
+    max-width: none;
+  }
+  .board {
+    max-width: none;
+    padding: 8px;
+    gap: 3px;
+  }
+  .sidebar {
+    width: 100%;
+  }
+
+  /* 顶栏紧凑 */
+  .topbar {
+    padding: 10px 14px;
+  }
+  .logo {
+    font-size: 18px;
+  }
+
+  /* 复盘：三栏改为竖向堆叠，棋盘排在最前 */
+  .review-layout {
+    grid-template-columns: 1fr;
+  }
+  .sessions-panel,
+  .log-panel {
+    max-height: none;
+  }
+  .replay-main {
+    order: -1;
+  }
+  .session-list {
+    max-height: 40vh;
+  }
+  .event-log {
+    max-height: 40vh;
+  }
+  .replay-controls .slider {
+    width: 100%;
+  }
+
+  /* 弹层限宽，避免溢出 */
+  .overlay-card {
+    min-width: 0;
+    width: 90vw;
+    max-width: 360px;
+    padding: 24px 20px;
+  }
+  .overlay-score {
+    font-size: 52px;
+  }
+}
+
+/* 更小的屏幕（如 iPhone SE）再收一点 */
+@media (max-width: 380px) {
+  .ss-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .replay-controls .btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
 }

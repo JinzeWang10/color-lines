@@ -7,10 +7,8 @@
   /** 初始化一个空网格容器，返回 cell 元素数组（按 index）。 */
   function buildGrid(container, size, onClick) {
     container.innerHTML = '';
-    container.style.gridTemplateColumns = `repeat(${size}, var(--cellsize))`;
-    // 棋盘越大格子越小，保证整体不超屏
-    const cs = size <= 7 ? 62 : size <= 9 ? 56 : 46;
-    container.style.setProperty('--cellsize', cs + 'px');
+    // 用 1fr 等分 + cell 的 aspect-ratio 保持正方形，整盘随容器宽度自适应（手机也不溢出）
+    container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
     const cells = [];
     for (let i = 0; i < size * size; i++) {
       const div = document.createElement('div');
