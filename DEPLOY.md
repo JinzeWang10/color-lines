@@ -66,3 +66,8 @@ sudo /usr/local/bin/color_lines_pull.sh
 ```
 
 刷新页面即新版（nginx 无需重载）。
+
+> 若早期装的旧版脚本报 `dubious ownership`，先一次性加白名单：
+> `sudo git config --global --add safe.directory /var/www/color-lines`
+> 然后把仓库里的新脚本覆盖上去即可（新脚本以 www-data 身份跑 git，不再有此问题）：
+> `sudo cp /var/www/color-lines/scripts/color_lines_pull.sh /usr/local/bin/`
