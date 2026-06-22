@@ -224,5 +224,20 @@ let bm2 = CL.hint.bestMove(gh2);
 ok(bm2 && gh2.cells[bm2.from] > 0 && gh2.cells[bm2.to] === 0, '提示返回合法走法(从球到空格)');
 ok(bm2 && gh2.reachableEmpties(bm2.from).includes(bm2.to), '提示的目标确实可达');
 
+// 17. 复盘失误分析：玩家漏掉一次可消除应被标记 missed
+let board17 = new Array(36).fill(0);
+[0, 1, 2].forEach((i) => (board17[i] = 1)); // 三个红 (0,0)(0,1)(0,2)
+board17[12] = 1; // 第四个红在 (2,0)，可走到 (0,3) 成线
+board17[35] = 5; // 一个蓝球在 (5,5)
+let session17 = {
+  settings: { size: 6, colors: 5, lineLength: 4, spawnCount: 3 },
+  initialBoard: board17,
+  // 玩家却去挪蓝球，没消除（漏掉了红色四连）
+  events: [{ type: 'move', t: 1000, from: 35, to: 34, color: 5, path: [35, 34] }],
+};
+let an = CL.analyzeSession(session17);
+ok(an[0] && an[0].missed === true, '复盘分析:漏消被正确标记');
+ok(an[0] && an[0].best.clears >= 1, '复盘分析:给出能消除的更优手');
+
 console.log(`\n通过 ${pass} / ${pass + fail}`);
 process.exit(fail ? 1 : 0);

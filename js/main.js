@@ -160,7 +160,7 @@
     setStatus('已撤销上一步。');
   }
 
-  /** 沿路径让球滑过去，再展示生成/消除结果。 */
+  /** 沿路径让球平滑滑过去，再展示生成/消除结果。 */
   function animateMove(preBoard, events, done) {
     const moveEv = events.find((e) => e.type === 'move');
     if (!moveEv) {
@@ -168,36 +168,69 @@
       return;
     }
     play.animating = true;
+    const boardEl = $('board');
     const path = moveEv.path;
     const color = moveEv.color;
-    let step = 0;
 
-    const tick = () => {
-      const frame = preBoard.slice();
-      frame[moveEv.from] = 0;
-      frame[path[step]] = color;
-      const pathSet = new Set(path.slice(0, step + 1));
-      ui.paint(play.cells, frame, { path: pathSet });
-      step++;
-      if (step < path.length) {
-        setTimeout(tick, 45);
-      } else {
-        const clearEv = events.find((e) => e.type === 'clear');
-        if (clearEv) {
-          const preClear = play.game.cells.slice();
-          clearEv.cells.forEach((c, k) => (preClear[c] = clearEv.colors[k]));
-          ui.paint(play.cells, preClear, { cleared: new Set(clearEv.cells) });
-          setTimeout(() => {
-            play.animating = false;
-            done();
-          }, 260);
-        } else {
+    // 背景：起点清空、其余球都在
+    const bg = preBoard.slice();
+    bg[moveEv.from] = 0;
+    ui.paint(play.cells, bg, {});
+
+    // 浮动球，绝对定位在棋盘上滑行
+    const fromCell = play.cells[moveEv.from];
+    const sizePx = fromCell.offsetWidth * 0.78;
+    const center = (i) => {
+      const c = play.cells[i];
+      return { x: c.offsetLeft + c.offsetWidth / 2, y: c.offsetTop + c.offsetHeight / 2 };
+    };
+    const start = center(path[0]);
+    const ball = ui.makeBall(color, 'floating');
+    ball.style.width = sizePx + 'px';
+    ball.style.height = sizePx + 'px';
+    ball.style.left = start.x - sizePx / 2 + 'px';
+    ball.style.top = start.y - sizePx / 2 + 'px';
+    boardEl.appendChild(ball);
+
+    const segs = path.length - 1;
+    const segDur = Math.max(28, Math.min(60, Math.round(420 / Math.max(1, segs))));
+    ball.style.transition = `transform ${segDur}ms linear`;
+
+    const finish = () => {
+      boardEl.querySelectorAll('.ball.floating').forEach((b) => b.remove());
+      const clearEv = events.find((e) => e.type === 'clear');
+      if (clearEv) {
+        // 还原"消除前"的盘（含落点与新球），让被消的球缩放淡出
+        const preClear = play.game.cells.slice();
+        clearEv.cells.forEach((c, k) => (preClear[c] = clearEv.colors[k]));
+        ui.paint(play.cells, preClear, {});
+        clearEv.cells.forEach((c) => {
+          const b = play.cells[c].querySelector('.ball');
+          if (b) b.classList.add('vanishing');
+        });
+        setTimeout(() => {
           play.animating = false;
           done();
-        }
+        }, 300);
+      } else {
+        play.animating = false;
+        done();
       }
     };
-    tick();
+
+    let step = 1;
+    const next = () => {
+      if (step >= path.length) {
+        finish();
+        return;
+      }
+      const p = center(path[step]);
+      ball.style.transform = `translate(${p.x - start.x}px, ${p.y - start.y}px)`;
+      step++;
+      setTimeout(next, segDur);
+    };
+    // 等初始位置生效再开始滑
+    requestAnimationFrame(() => requestAnimationFrame(next));
   }
 
   // ---- 结算弹层 ----
@@ -253,6 +286,7 @@
   const review = {
     session: null,
     frames: [],
+    analysis: {},
     pos: 0,
     cells: [],
     playing: false,
@@ -319,6 +353,7 @@
     $('event-log').innerHTML = '<div class="empty-hint">选一局开始复盘。</div>';
     $('session-stats').innerHTML = '';
     $('replay-status').textContent = '';
+    $('replay-note').textContent = '';
     $('rp-frame').textContent = '0 / 0';
     $('rp-slider').max = 0;
     $('rp-slider').value = 0;
@@ -330,6 +365,7 @@
     if (!s) return;
     review.session = s;
     review.frames = buildFrames(s);
+    review.analysis = global.CL.analyzeSession(s);
     review.pos = 0;
     review.size = s.settings.size;
     review.cells = ui.buildGrid($('replay-board'), s.settings.size, null);
@@ -342,6 +378,10 @@
 
   function renderSessionStats(s) {
     const st = stats.sessionStats(s);
+    let missed = 0;
+    Object.values(review.analysis).forEach((a) => {
+      if (a.missed) missed++;
+    });
     $('session-stats').innerHTML = `
       <div class="ss-grid">
         <div><b>${st.score}</b><span>得分</span></div>
@@ -349,7 +389,7 @@
         <div><b>${st.ballsCleared}</b><span>消除</span></div>
         <div><b>${st.biggestClear || 0}</b><span>最大连消</span></div>
         <div><b>${st.efficiency}</b><span>每步均消</span></div>
-        <div><b>${stats.fmtDuration(st.durationMs)}</b><span>用时</span></div>
+        <div><b>${missed}</b><span>漏消</span></div>
       </div>`;
   }
 
@@ -358,10 +398,12 @@
     log.innerHTML = '';
     review.frames.forEach((f, i) => {
       const row = document.createElement('div');
-      row.className = 'log-row' + (i === review.pos ? ' active' : '');
+      const a = f.event && f.event.type === 'move' ? review.analysis[i - 1] : null;
+      const flag = a && a.missed ? ' ⚠' : a && a.suboptimal ? ' 💡' : '';
+      row.className = 'log-row' + (i === review.pos ? ' active' : '') + (a && a.missed ? ' miss' : '');
       row.dataset.frame = i;
       const t = f.event ? (f.event.t / 1000).toFixed(1) + 's' : '0s';
-      row.innerHTML = `<span>${f.label}</span><span class="lr-t">${t}</span>`;
+      row.innerHTML = `<span>${f.label}<span class="lr-flag">${flag}</span></span><span class="lr-t">${t}</span>`;
       row.addEventListener('click', () => {
         stopAutoplay();
         showFrame(i);
@@ -376,6 +418,20 @@
     const frame = review.frames[pos];
     ui.paint(review.cells, frame.board, { highlight: new Set(frame.highlight) });
     $('replay-status').textContent = `${frame.label} · 得分 ${frame.score}`;
+
+    // 失误标注
+    const a = frame.event && frame.event.type === 'move' ? review.analysis[pos - 1] : null;
+    const note = $('replay-note');
+    if (a && (a.missed || a.suboptimal)) {
+      const rc = (i) => `(${Math.floor(i / review.size) + 1},${(i % review.size) + 1})`;
+      const sug = `引擎建议 ${rc(a.best.from)}→${rc(a.best.to)}`;
+      note.textContent = a.missed ? `⚠ 这一手漏了一次消除！${sug}` : `💡 也许更优：${sug}`;
+      note.className = 'replay-note ' + (a.missed ? 'miss' : 'sub');
+    } else {
+      note.textContent = '';
+      note.className = 'replay-note';
+    }
+
     $('rp-frame').textContent = `${pos} / ${review.frames.length - 1}`;
     $('rp-slider').value = pos;
     document.querySelectorAll('#event-log .log-row').forEach((r) => {
@@ -415,6 +471,23 @@
     $('btn-sound').textContent = sound.isMuted() ? '🔇 静音' : '🔊 音效';
   }
 
+  // ---- 颜色图案开关 ----
+  function patternEnabled() {
+    return localStorage.getItem('color-lines.pattern') !== '0';
+  }
+  function updatePatternBtn() {
+    $('btn-pattern').textContent = patternEnabled() ? '🔣 图案' : '🔣 朴素';
+  }
+  function applyPattern() {
+    ui.setPattern(patternEnabled());
+    updatePatternBtn();
+  }
+  function togglePattern() {
+    localStorage.setItem('color-lines.pattern', patternEnabled() ? '0' : '1');
+    applyPattern();
+    refreshPlay();
+  }
+
   function bind() {
     document.querySelectorAll('.tab').forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -437,6 +510,7 @@
       sound.toggleMute();
       updateSoundBtn();
     });
+    $('btn-pattern').addEventListener('click', togglePattern);
     $('btn-export-cur').addEventListener('click', () => {
       if (play.recorder.session) Recorder.exportSession(play.recorder.session.id);
     });
@@ -517,6 +591,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     bind();
     updateSoundBtn();
+    applyPattern();
     clearReplay();
     newGame();
     setupLimit();

@@ -75,7 +75,56 @@
     }
   }
 
+  /** 评估某一手（在给定棋盘上）的得分价值，与提示引擎同一套算法。 */
+  function evalMove(game, hint, from, to) {
+    const b = game.cells.slice();
+    const color = b[from];
+    if (!color) return { value: -1, clears: 0 };
+    b[to] = color;
+    b[from] = 0;
+    const lines = game.linesOn(b);
+    if (lines.length) {
+      const b2 = b.slice();
+      lines.forEach((i) => (b2[i] = 0));
+      return { value: 1000 * lines.length + hint.potential(game, b2), clears: lines.length };
+    }
+    return { value: hint.potential(game, b), clears: 0 };
+  }
+
+  /**
+   * 逐手分析：对每个 move，用提示引擎算出最优手，与玩家实际走法比较。
+   * 返回 { [事件index]: {best, playerValue, playerClears, missed, suboptimal} }。
+   * missed = 本可消除却没消；suboptimal = 没漏消但明显有更优手。
+   */
+  function analyzeSession(session) {
+    const Game = global.CL.Game;
+    const hint = global.CL.hint;
+    if (!Game || !hint) return {};
+    const s = session.settings;
+    const frames = buildFrames(session); // frames[i].board = 第 i 个事件发生前的棋盘
+    const game = new Game({
+      size: s.size,
+      colors: s.colors,
+      lineLength: s.lineLength,
+      spawnCount: s.spawnCount,
+      seed: 1,
+    });
+    const analysis = {};
+    session.events.forEach((ev, i) => {
+      if (ev.type !== 'move') return;
+      game.cells = frames[i].board.slice();
+      const best = hint.bestMove(game);
+      const pv = evalMove(game, hint, ev.from, ev.to);
+      if (!best) return;
+      const missed = best.clears > 0 && pv.clears === 0;
+      const suboptimal = !missed && best.value - pv.value >= 40;
+      analysis[i] = { best, playerValue: pv.value, playerClears: pv.clears, missed, suboptimal };
+    });
+    return analysis;
+  }
+
   global.CL = global.CL || {};
   global.CL.buildFrames = buildFrames;
+  global.CL.analyzeSession = analyzeSession;
   global.CL.TYPE_LABEL = TYPE_LABEL;
 })(window);
