@@ -17,8 +17,9 @@
   --danger: #cf6a5b;
   --jade: #6aa97f;
   --board-bg: #14110d;
-  --cell-empty: #221d16;
-  --cell: #2e2820;
+  --cell-empty: #2a241c; /* 提亮一档，与棋盘底拉开亮度差（防压黑） */
+  --cell: #383127;
+  --cell-line: rgba(220, 200, 160, 0.14); /* 格子显式描边，不再只靠缝隙露底 */
   --radius: 12px;
   --radius-lg: 18px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
@@ -166,13 +167,14 @@ body {
 .cell {
   aspect-ratio: 1 / 1;
   background: var(--cell-empty);
+  border: 1px solid var(--cell-line); /* 显式描边：即使屏幕压黑也能看清格子边界 */
   border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
-  transition: background 0.14s, box-shadow 0.14s;
+  transition: background 0.14s, box-shadow 0.14s, border-color 0.14s;
 }
 .cell:hover {
   background: var(--cell);
@@ -811,5 +813,47 @@ body {
   .replay-controls .btn {
     padding: 8px 10px;
     font-size: 12px;
+  }
+}
+
+/* ============ 显示健壮性：低对比屏 / 高对比模式 ============
+   本主题靠近黑之间的细微亮度差表达结构，在压黑的屏幕、未校准的
+   色彩配置或系统高对比模式下会糊成一片黑。下面两档兜底。 */
+
+/* 用户要求更高对比（系统「增强对比度」）：把棋盘结构显著拉开 */
+@media (prefers-contrast: more) {
+  :root {
+    --board-bg: #000000;
+    --cell-empty: #35302a;
+    --cell-line: rgba(240, 225, 190, 0.5);
+    --line: #6a5f4e;
+    --line-soft: #514838;
+  }
+  .board {
+    gap: 6px;
+  }
+  .cell {
+    border-width: 2px;
+  }
+}
+
+/* Windows 高对比 / forced-colors：渐变底不被系统色替换，会残留黑块，
+   这里改用系统色重画棋盘，保证「线」始终可见。 */
+@media (forced-colors: active) {
+  .board {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+  .cell {
+    background: Canvas;
+    border: 1px solid CanvasText; /* 系统色描边，永远与背景有对比 */
+    forced-color-adjust: none;
+  }
+  .cell.highlight,
+  .cell.hint-cell {
+    outline-color: Highlight;
+  }
+  .ball {
+    forced-color-adjust: none; /* 保留棋子本色，否则被强制成单色不可辨 */
   }
 }
