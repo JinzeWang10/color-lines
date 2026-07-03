@@ -21,6 +21,11 @@
     <!-- ====== 游戏视图 ====== -->
     <main id="view-play" class="view active">
       <section class="board-wrap">
+        <!-- 窄屏时侧栏在首屏外，这条让玩家不滚屏也能看到下一批 -->
+        <div class="next-inline">
+          <span class="next-inline-label">下一批</span>
+          <div id="next-preview-inline" class="next-preview"></div>
+        </div>
         <div id="board" class="board" aria-label="棋盘"></div>
         <div id="status" class="status"></div>
       </section>

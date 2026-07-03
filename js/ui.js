@@ -32,6 +32,7 @@
 
   /** 初始化一个空网格容器，返回 cell 元素数组（按 index）。 */
   function buildGrid(container, size, onClick) {
+    container.classList.remove('board-empty'); // 可能带着复盘空状态占位
     container.innerHTML = '';
     // 用 1fr 等分 + cell 的 aspect-ratio 保持正方形，整盘随容器宽度自适应（手机也不溢出）
     container.style.gridTemplateColumns = `repeat(${size}, 1fr)`;

@@ -19,7 +19,7 @@
   --board-bg: #14110d;
   --cell-empty: #2a241c; /* 提亮一档，与棋盘底拉开亮度差（防压黑） */
   --cell: #383127;
-  --cell-line: rgba(220, 200, 160, 0.14); /* 格子显式描边，不再只靠缝隙露底 */
+  --cell-line: rgba(220, 200, 160, 0.32); /* 网格线色：透过格间缝隙露出成线 */
   --radius: 12px;
   --radius-lg: 18px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.28);
@@ -27,14 +27,15 @@
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Microsoft YaHei', sans-serif;
 
-  /* 7 种宝石棋子色 + 索引 0 占位 */
-  --c1: #cf5b4e; /* 赤陶红 */
-  --c2: #d98a3d; /* 琥珀 */
-  --c3: #d9b441; /* 古金 */
-  --c4: #5a9e74; /* 翠玉 */
-  --c5: #4d86b8; /* 青金 */
-  --c6: #8c6fb0; /* 紫晶 */
-  --c7: #c2738f; /* 玫瑰 */
+  /* 7 种宝石棋子色 + 索引 0 占位。
+     色相均匀拉开，相邻色相再用明度差区分（橙深、黄亮），降低混淆 */
+  --c1: #d23b2e; /* 赤红 */
+  --c2: #d97818; /* 橙 */
+  --c3: #efd84e; /* 明黄 */
+  --c4: #3aa25c; /* 翠绿 */
+  --c5: #4a8ad9; /* 青蓝 */
+  --c6: #9163cf; /* 紫晶 */
+  --c7: #e07cb4; /* 粉红 */
 }
 
 * {
@@ -45,9 +46,12 @@ body {
   margin: 0;
   height: 100%;
 }
+html {
+  background: var(--bg); /* 兜底：滚出渐变区/橡皮筋回弹时不露白 */
+}
 body {
+  /* 不用 background-attachment: fixed——iOS Safari 上会错位或失效 */
   background: radial-gradient(1100px 560px at 50% -12%, var(--bg-2), var(--bg) 70%);
-  background-attachment: fixed;
   color: var(--text);
   font-family: var(--sans);
   display: flex;
@@ -152,12 +156,48 @@ body {
   width: 100%;
   max-width: 540px;
 }
+/* 窄屏专用的「下一批」紧凑条：侧栏卡片在首屏外，规划下一手看不到 */
+.next-inline {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.next-inline .next-inline-label {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* 复盘页未选对局时的占位，避免空 grid 塌成一条 */
+.board.board-empty {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--board-bg);
+}
+.board-empty .board-empty-text {
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  padding: 28px 36px;
+}
 .board {
+  --grid-gap: 1px; /* 网格线粗细 */
+  --grid-pad: 14px;
   position: relative;
   display: grid;
-  gap: 5px;
-  background: var(--board-bg);
-  padding: 14px;
+  gap: var(--grid-gap);
+  /* 连续网格线画法：格子间只留线宽的缝隙，底下垫一层线色矩形，
+     缝隙处露出即成线；矩形比格子区各边大一圈线宽，兼作外框线。
+     线是垫底色而非逐格描边，无论棋盘几路都对得齐。 */
+  background: linear-gradient(var(--cell-line), var(--cell-line)) no-repeat
+      calc(var(--grid-pad) - var(--grid-gap)) calc(var(--grid-pad) - var(--grid-gap)) /
+      calc(100% - 2 * var(--grid-pad) + 2 * var(--grid-gap))
+      calc(100% - 2 * var(--grid-pad) + 2 * var(--grid-gap)),
+    var(--board-bg);
+  padding: var(--grid-pad);
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   width: 100%;
@@ -167,14 +207,11 @@ body {
 .cell {
   aspect-ratio: 1 / 1;
   background: var(--cell-empty);
-  border: 1px solid var(--cell-line); /* 显式描边：即使屏幕压黑也能看清格子边界 */
-  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
-  transition: background 0.14s, box-shadow 0.14s, border-color 0.14s;
+  transition: background 0.14s, box-shadow 0.14s;
 }
 .cell:hover {
   background: var(--cell);
@@ -193,6 +230,33 @@ body {
 .cell.hint-cell {
   outline: 2px dashed var(--accent);
   outline-offset: -2px;
+}
+/* 选中：静态高亮环（弹跳动画之外的兜底，关动效/截图下也能看出选中） */
+.cell.selected {
+  background: var(--accent-dim);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* 走不通：目标格红闪 */
+.cell.deny {
+  animation: deny-flash 0.32s ease;
+}
+@keyframes deny-flash {
+  30% {
+    background: rgba(210, 59, 46, 0.4);
+  }
+}
+/* 走不通：选中球左右轻晃提醒「是这个球走不过去」 */
+.cell.shake .ball {
+  animation: shake 0.3s ease;
+}
+@keyframes shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 .ball {
@@ -221,6 +285,46 @@ body {
 .ball.small {
   width: 30px;
   height: 30px;
+}
+/* 新球落盘：从小弹出，让玩家注意到哪些格子被占了 */
+.ball.spawning {
+  animation: pop 0.2s ease-out;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* 消除时在原地浮出的得分 */
+.float-score {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  animation: float-up 1s ease-out forwards;
+}
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 46px));
+  }
 }
 .ball.vanishing {
   animation: vanish 0.26s ease forwards;
@@ -757,8 +861,10 @@ body {
   }
   .board {
     max-width: none;
-    padding: 8px;
-    gap: 4px;
+    --grid-pad: 8px;
+  }
+  .next-inline {
+    display: flex;
   }
   .sidebar {
     width: 100%;
@@ -830,10 +936,7 @@ body {
     --line-soft: #514838;
   }
   .board {
-    gap: 6px;
-  }
-  .cell {
-    border-width: 2px;
+    --grid-gap: 2px; /* 高对比下加粗网格线 */
   }
 }
 
@@ -855,5 +958,20 @@ body {
   }
   .ball {
     forced-color-adjust: none; /* 保留棋子本色，否则被强制成单色不可辨 */
+  }
+}
+
+/* 减弱动态效果：关掉装饰性动画。选中态有静态高亮环兜底，不丢信息 */
+@media (prefers-reduced-motion: reduce) {
+  .cell.selected .ball,
+  .ball.spawning,
+  .cell.shake .ball {
+    animation: none;
+  }
+  .float-score {
+    animation: float-up 0.01ms forwards; /* 直接到终态（隐藏），分数走状态栏 */
+  }
+  .ball.floating {
+    transition: none !important; /* 走子逐格跳到位，不平滑滑行 */
   }
 }

@@ -35,7 +35,7 @@
   function newGame() {
     const settings = readSettings();
     play.game = new Game(settings);
-    play.game.initialSpawn(5); // 开局先放几个球
+    const placed = play.game.initialSpawn(5); // 开局先放几个球
     play.selected = null;
     play.animating = false;
     play.undoSnapshot = null;
@@ -43,7 +43,16 @@
     play.recorder.startSession(play.game, settings);
     hideOverlay();
     refreshPlay();
+    markSpawning(placed);
     setStatus('点一个球选中，再点一个空格移动它。');
+  }
+
+  /** 给刚生成的球加 pop 动画（球可能已被随即消除，判空跳过）。 */
+  function markSpawning(balls) {
+    (balls || []).forEach(({ cell }) => {
+      const b = play.cells[cell] && play.cells[cell].querySelector('.ball');
+      if (b) b.classList.add('spawning');
+    });
   }
 
   function refreshPlay() {
@@ -55,6 +64,7 @@
     $('cleared-count').textContent = stats.sessionStats(play.recorder.session).ballsCleared;
     $('seed').textContent = g.seed;
     ui.renderNextPreview($('next-preview'), g.next);
+    ui.renderNextPreview($('next-preview-inline'), g.next);
     $('btn-undo').disabled = !play.undoSnapshot;
   }
 
@@ -74,6 +84,14 @@
     limit.bump();
     sound.unlock();
 
+    // 再点已选中的球：取消选中
+    if (play.selected === i) {
+      play.selected = null;
+      ui.paint(play.cells, g.cells, {});
+      setStatus('已取消选中。');
+      return;
+    }
+
     // 点到有球：选中（或切换选中）
     if (!g.isEmpty(i)) {
       play.selected = i;
@@ -92,6 +110,13 @@
     const to = i;
     if (!g.findPath(from, to)) {
       sound.invalid();
+      // 玩家视线在棋盘上：目标格红闪 + 选中球轻晃，不能只靠底部文字
+      play.cells[to].classList.add('deny');
+      play.cells[from].classList.add('shake');
+      setTimeout(() => {
+        play.cells[to].classList.remove('deny');
+        play.cells[from].classList.remove('shake');
+      }, 350);
       setStatus('走不通：路径被挡住了。', 'over');
       return;
     }
@@ -115,13 +140,18 @@
       refreshPlay();
       const gameover = result.events.find((e) => e.type === 'gameover');
       const cleared = result.events.find((e) => e.type === 'clear');
+      const spawned = result.events.find((e) => e.type === 'spawn');
+      // 消除分支里 animateMove 已在盘面重绘时做过 pop，这里只管普通生成
+      if (spawned && !cleared) markSpawning(spawned.balls);
       if (cleared) sound.clear(cleared.count);
       if (gameover) {
         showGameOver(gameover.finalScore);
       } else if (cleared) {
         setStatus(`消除 ${cleared.count} 个球，+${cleared.scoreGained} 分！`, 'win');
       } else {
-        setStatus('继续。');
+        const empties = play.game.emptyCells().length;
+        // 临近终局给点紧迫感；平时不刷屏
+        setStatus(empties <= 12 ? `继续。棋盘只剩 ${empties} 个空格了。` : '继续。');
       }
     });
   }
@@ -193,7 +223,7 @@
     boardEl.appendChild(ball);
 
     const segs = path.length - 1;
-    const segDur = Math.max(28, Math.min(60, Math.round(420 / Math.max(1, segs))));
+    const segDur = Math.max(16, Math.min(35, Math.round(240 / Math.max(1, segs))));
     ball.style.transition = `transform ${segDur}ms linear`;
 
     const finish = () => {
@@ -204,10 +234,27 @@
         const preClear = play.game.cells.slice();
         clearEv.cells.forEach((c, k) => (preClear[c] = clearEv.colors[k]));
         ui.paint(play.cells, preClear, {});
+        const spawnEv = events.find((e) => e.type === 'spawn');
+        if (spawnEv) markSpawning(spawnEv.balls);
         clearEv.cells.forEach((c) => {
           const b = play.cells[c].querySelector('.ball');
           if (b) b.classList.add('vanishing');
         });
+        // 在被消球的重心处浮出得分
+        const mid = clearEv.cells.reduce(
+          (acc, c) => {
+            const p = center(c);
+            return { x: acc.x + p.x / clearEv.cells.length, y: acc.y + p.y / clearEv.cells.length };
+          },
+          { x: 0, y: 0 }
+        );
+        const fs = document.createElement('div');
+        fs.className = 'float-score';
+        fs.textContent = `+${clearEv.scoreGained}`;
+        fs.style.left = mid.x + 'px';
+        fs.style.top = mid.y + 'px';
+        boardEl.appendChild(fs);
+        setTimeout(() => fs.remove(), 1100);
         setTimeout(() => {
           play.animating = false;
           done();
@@ -349,7 +396,9 @@
   }
 
   function clearReplay() {
-    $('replay-board').innerHTML = '';
+    // 空 grid 会塌成一条，给个占位撑住形状
+    $('replay-board').classList.add('board-empty');
+    $('replay-board').innerHTML = '<div class="board-empty-text">从左侧选一局开始复盘</div>';
     $('event-log').innerHTML = '<div class="empty-hint">选一局开始复盘。</div>';
     $('session-stats').innerHTML = '';
     $('replay-status').textContent = '';
@@ -557,6 +606,13 @@
         if ($('view-play').classList.contains('active')) undo();
       }
       if (e.key === 'h' && $('view-play').classList.contains('active')) showHint();
+      if (e.key === 'Escape' && $('view-play').classList.contains('active')) {
+        if (play.selected != null && !play.animating) {
+          play.selected = null;
+          ui.paint(play.cells, play.game.cells, {});
+          setStatus('已取消选中。');
+        }
+      }
       if ($('view-review').classList.contains('active')) {
         if (e.key === 'ArrowRight') {
           stopAutoplay();
