@@ -115,7 +115,8 @@ h2 { font-family: var(--serif); font-size: 17px; font-weight: 600; margin: 34px 
 .card .v { font-family: var(--serif); font-size: 30px; color: var(--accent-2); line-height: 1.1; }
 .card .u { color: var(--muted); font-size: 12px; margin-left: 3px; }
 .chart { display: flex; align-items: flex-end; gap: 4px; height: 170px; padding: 8px 2px 0; overflow-x: auto; }
-.bar { flex: 1 0 20px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+/* max-width 是要紧的：只有一两天数据时，不加会被 flex 拉成一整块板子 */
+.bar { flex: 1 1 20px; max-width: 46px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
 .bar b { font-size: 10px; color: var(--muted); font-weight: 400; margin-bottom: 3px; }
 .bar i { display: block; width: 100%; height: var(--h); min-height: 2px; border-radius: 4px 4px 0 0;
          background: linear-gradient(180deg, var(--accent-2), var(--accent)); }
