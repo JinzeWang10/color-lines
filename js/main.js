@@ -4,13 +4,16 @@
 (function (global) {
   'use strict';
 
-  const { Game, Recorder, ui, buildFrames, sound, stats, PlayLimit } = global.CL;
+  const { Game, Recorder, ui, buildFrames, sound, stats, PlayLimit, Beacon } = global.CL;
   const $ = (id) => document.getElementById(id);
 
   // 防沉迷计时器（仅在游戏页 + 页面可见时累计）
   const limit = new PlayLimit();
   limit.isActive = () =>
     $('view-play').classList.contains('active') && document.visibilityState === 'visible';
+
+  // 匿名打点，蹭上面这个计时器的口径（离线单文件版会自动关掉）
+  const beacon = new Beacon();
 
   // ===================== 游戏视图 =====================
   const play = {
@@ -635,7 +638,8 @@
       setStatus(`再玩 ${Math.ceil(rem / 60)} 分钟就要休息啦，注意时间~`, 'over');
     };
     limit.onLock = () => showLock();
-    limit.onTick = () => {
+    limit.onTick = (seconds) => {
+      beacon.tick(seconds);
       if (limit.isLocked() && !$('lock-overlay').classList.contains('hidden')) {
         $('lock-countdown').textContent = `距离明天还有 ${fmtCountdown(limit.msUntilReset())}`;
       }

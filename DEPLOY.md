@@ -67,6 +67,48 @@ sudo /usr/local/bin/color_lines_pull.sh
 
 刷新页面即新版（nginx 无需重载）。
 
+---
+
+## 游玩统计（谁玩了多久）
+
+看板地址：**<https://lines.knowyourself.com.cn/stats/>**（无密码，手机可直接收藏）
+
+原理是「日志即数据库」，不需要后端和数据库：页面每玩满一分钟发一个 GET 到 `/px`，
+nginx 直接 `return 204` 不落文件，只在专用日志里记一行；cron 每 10 分钟把日志汇总成静态页。
+
+- 时长口径蹭的是防沉迷计时器（`js/limit.js`）：只在游戏页、页面可见、两分钟内有操作时才计秒，
+  挂机 / 切标签页 / 看复盘都不算。
+- 只发一个随机匿名 ID，日志里不记 IP、不记 UA。发出去的单文件离线版（`file://`）完全不打点。
+- nginx 日志 logrotate 只留 14 天，所以脚本每次都把结果并进 `/var/lib/color-lines/daily.tsv`，
+  历史不随轮转丢失。
+
+### ECS 一次性安装
+
+```bash
+# 1. 日志格式（log_format 只能在 http 上下文，故走 conf.d）
+sudo cp /var/www/color-lines/deploy/color-lines-log.conf /etc/nginx/conf.d/
+
+# 2. 站点配置里加 /px 和 /stats 两个 location（照 deploy/nginx-color-lines.conf 改）
+sudo nano /etc/nginx/sites-available/color-lines.conf
+sudo nginx -t && sudo systemctl reload nginx
+
+# 3. 统计脚本 + 每 10 分钟一次的 cron
+sudo cp /var/www/color-lines/scripts/color_lines_stats.sh /usr/local/bin/
+sudo chmod +x /usr/local/bin/color_lines_stats.sh
+sudo /usr/local/bin/color_lines_stats.sh          # 先手动跑一次，把页面生成出来
+echo '*/10 * * * * root /usr/local/bin/color_lines_stats.sh >/dev/null 2>&1' \
+  | sudo tee /etc/cron.d/color-lines-stats
+```
+
+> `/stats/` 那条 location 必须写 `^~`。不然内部跳转到 `/stats/index.html` 时会被
+> `.html` 那条正则 location 抢走（正则优先于普通前缀），拿 root 去找 → 404。
+
+### 不开网页时，命令行看
+
+```bash
+column -t /var/lib/color-lines/daily.tsv   # 日期 / 匿名ID / 分钟 / 局数
+```
+
 > 若早期装的旧版脚本报 `dubious ownership`，先一次性加白名单：
 > `sudo git config --global --add safe.directory /var/www/color-lines`
 > 然后把仓库里的新脚本覆盖上去即可（新脚本以 www-data 身份跑 git，不再有此问题）：
