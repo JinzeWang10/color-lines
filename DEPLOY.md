@@ -4,7 +4,7 @@
 源码本身就是可直接托管的静态站（`index.html` + `css/` + `js/`），**不需要 deploy 分支**——
 ECS 直接 clone 仓库、`git pull` 更新即可。
 
-- ECS 22 端口对公网关闭，服务器侧命令都在**阿里云 ECS Workbench**（浏览器）里跑。
+- 服务器可以直接 SSH：`ssh -i ~/.ssh/ecs_deploy_key root@47.95.32.117`（2026-11-06 从旧服务器 `39.102.120.6` 换过来），不用再走 ECS Workbench。
 - 无隐私数据，**仓库公开**即可，ECS 用 https 直接 clone，**不需要 deploy key**。
 - `dist/` 已 gitignore，服务器跑的是多文件源码版（功能完全一致）。
 
@@ -36,7 +36,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## C. DNS（在 knowyourself.com.cn 解析后台）
 
-加一条 A 记录：`lines` → `39.102.120.6`（TTL 600）。等 `ping lines.knowyourself.com.cn` 能解析到该 IP。
+加一条 A 记录：`lines` → `47.95.32.117`（TTL 600）。等 `ping lines.knowyourself.com.cn` 能解析到该 IP。
 阿里云 ECS 安全组放行 **80 / 443**。
 
 ## D. HTTPS
