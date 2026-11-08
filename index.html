@@ -9,17 +9,18 @@
   <body>
     <header class="topbar">
       <div>
-        <h1 class="logo">彩球连珠 <span>Color Lines</span></h1>
+        <h1 class="logo" id="logo">彩球连珠 <span>Color Lines</span></h1>
         <div class="dedication" id="dedication">父亲节快乐</div>
       </div>
       <nav class="tabs">
-        <button class="tab active" data-view="play">游戏</button>
+        <button class="tab active" data-view="play">彩球连珠</button>
+        <button class="tab" data-view="2048">2048</button>
         <button class="tab" data-view="review">复盘</button>
       </nav>
     </header>
 
-    <!-- ====== 游戏视图 ====== -->
-    <main id="view-play" class="view active">
+    <!-- ====== 彩球连珠 ====== -->
+    <main id="view-play" class="view game-view active">
       <section class="board-wrap">
         <!-- 窄屏时侧栏在首屏外，这条让玩家不滚屏也能看到下一批 -->
         <div class="next-inline">
@@ -47,7 +48,7 @@
           <div class="controls-row">
             <button id="btn-undo" class="btn" disabled>↶ 撤销</button>
             <button id="btn-pattern" class="btn" title="颜色图案开关">🔣 图案</button>
-            <button id="btn-sound" class="btn" title="音效开关">🔊 音效</button>
+            <button class="btn js-sound" title="音效开关">🔊 音效</button>
           </div>
         </div>
 
@@ -96,16 +97,6 @@
         </div>
       </aside>
 
-      <!-- 防沉迷锁定遮罩（不可关闭） -->
-      <div id="lock-overlay" class="overlay lock-overlay hidden">
-        <div class="overlay-card">
-          <div class="lock-emoji">🌙</div>
-          <div class="overlay-title">今天玩得够久啦</div>
-          <div class="lock-text" id="lock-text"></div>
-          <div class="lock-countdown" id="lock-countdown"></div>
-        </div>
-      </div>
-
       <!-- 结算弹层 -->
       <div id="overlay" class="overlay hidden">
         <div class="overlay-card">
@@ -119,13 +110,128 @@
       </div>
     </main>
 
+    <!-- ====== 2048 ====== -->
+    <main id="view-2048" class="view game-view">
+      <section class="board-wrap">
+        <!-- 窄屏时侧栏在首屏外，分数挪到棋盘上方 -->
+        <div class="score-inline">
+          <span>得分 <b class="gain-host"><span id="score-2048-inline" class="score-num">0</span></b></span>
+          <span class="best-wrap">最高分 <b id="best-2048-inline">0</b></span>
+        </div>
+        <div id="board-2048" class="board-2048" aria-label="2048 棋盘">
+          <div id="grid-2048" class="g-grid"></div>
+          <div id="tiles-2048" class="g-tiles"></div>
+        </div>
+        <div id="status-2048" class="status"></div>
+      </section>
+
+      <aside class="sidebar">
+        <!-- 窄屏时隐藏：棋盘上方已有一行分数 -->
+        <div class="panel score-panel score-panel-2048">
+          <div class="score-label">得分</div>
+          <div class="score-value">
+            <span class="gain-host"><span id="score-2048" class="score-num">0</span></span>
+          </div>
+          <div class="best-row best-wrap">最高分 <b id="best-2048">0</b></div>
+        </div>
+
+        <div class="panel dpad-panel">
+          <div class="dpad" aria-label="方向">
+            <button class="btn dpad-up" data-dir="up" aria-label="上">▲</button>
+            <button class="btn dpad-left" data-dir="left" aria-label="左">◀</button>
+            <button class="btn dpad-down" data-dir="down" aria-label="下">▼</button>
+            <button class="btn dpad-right" data-dir="right" aria-label="右">▶</button>
+          </div>
+          <div class="controls-row">
+            <button id="btn-undo-2048" class="btn" disabled>↶ 撤销</button>
+            <button class="btn js-sound" title="音效开关">🔊 音效</button>
+            <button id="btn-help-2048" class="btn" title="新手教程">❔ 玩法</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">本局</div>
+          <div class="kv"><span>最大方块</span><b id="max-2048">0</b></div>
+          <div class="kv"><span>步数</span><b id="moves-2048">0</b></div>
+          <p class="howto">
+            相同的数字碰在一起会合成一个。每走一步冒出一个新数字，格子占满又合不动就结束。
+          </p>
+          <button id="btn-new-2048" class="btn btn-primary">开新局</button>
+        </div>
+      </aside>
+
+      <!-- 结算 / 通关弹层 -->
+      <div id="overlay-2048" class="overlay hidden">
+        <div class="overlay-card">
+          <div class="overlay-title" id="ov2-title">本局结束</div>
+          <div class="overlay-score" id="ov2-score">0</div>
+          <div class="overlay-badge hidden" id="ov2-best">🏆 新纪录！</div>
+          <div class="overlay-stats" id="ov2-stats"></div>
+          <div class="overlay-msg" id="ov2-msg"></div>
+          <button id="ov2-continue" class="btn btn-primary btn-big" hidden>继续挑战</button>
+          <button id="ov2-again" class="btn btn-primary btn-big">再来一局</button>
+        </div>
+      </div>
+
+      <!-- 新手教程：一块独立的小棋盘，手把手走几步（第一次进 2048 自动弹，侧栏「玩法」可再看） -->
+      <div
+        id="tutorial-2048"
+        class="overlay tut hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tut-title"
+      >
+        <div class="overlay-card tut-card">
+          <div class="tut-head">
+            <div class="tut-dots" id="tut-dots"></div>
+            <button id="tut-skip" class="tut-skip">跳过教程</button>
+          </div>
+          <div class="tut-title" id="tut-title"></div>
+          <p class="tut-text" id="tut-text"></p>
+
+          <div class="tut-stage" id="tut-stage">
+            <div id="tut-board" class="board-2048 board-mini" aria-label="练习棋盘">
+              <div class="g-grid"></div>
+              <div class="g-tiles"></div>
+            </div>
+            <div class="tut-arrows">
+              <button class="btn" data-tdir="left" aria-label="左">◀</button>
+              <button class="btn" data-tdir="up" aria-label="上">▲</button>
+              <button class="btn" data-tdir="down" aria-label="下">▼</button>
+              <button class="btn" data-tdir="right" aria-label="右">▶</button>
+            </div>
+          </div>
+
+          <div class="tut-goal" id="tut-goal" hidden>
+            <div class="tut-ladder" aria-hidden="true">
+              <span class="tile-face t2">2</span><i>→</i><span class="tile-face t8">8</span><i>→</i
+              ><span class="tile-face t64">64</span><i>→</i><span class="tile-face t512">512</span
+              ><i>→</i><span class="tile-face t2048">2048</span>
+            </div>
+            <ul class="tut-list">
+              <li><b>目标</b>一路合下去，合出 2048 就算赢，之后还能接着玩。</li>
+              <li><b>结束</b>格子全占满，又没有挨着的相同数字，这一局就结束。</li>
+              <li><b>窍门</b>把最大的数一直放在一个角上，别轻易把它挪开。</li>
+              <li><b>走错了</b>点「撤销」可以退回一步。</li>
+            </ul>
+          </div>
+
+          <p class="tut-feedback" id="tut-feedback"></p>
+          <div class="tut-actions">
+            <button id="tut-retry" class="btn">重来这一步</button>
+            <button id="tut-next" class="btn btn-primary" disabled>下一步</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
     <!-- ====== 复盘视图 ====== -->
     <section id="view-review" class="view">
       <div class="review-layout">
         <aside class="sessions-panel">
           <div id="agg-stats" class="agg-stats"></div>
           <div class="panel-title">
-            历史对局
+            彩球连珠 · 历史对局
             <span class="muted" id="session-count"></span>
           </div>
           <div id="session-list" class="session-list"></div>
@@ -160,6 +266,17 @@
       </div>
     </section>
 
+    <!-- 防沉迷锁定遮罩（不可关闭；两个游戏共用，所以放在视图外面） -->
+    <div id="lock-overlay" class="overlay lock-overlay hidden">
+      <div class="overlay-card">
+        <div class="lock-emoji">🌙</div>
+        <div class="overlay-title">今天玩得够久啦</div>
+        <div class="lock-text" id="lock-text"></div>
+        <div class="lock-split" id="lock-split"></div>
+        <div class="lock-countdown" id="lock-countdown"></div>
+      </div>
+    </div>
+
     <script src="js/rng.js"></script>
     <script src="js/limit.js"></script>
     <script src="js/beacon.js"></script>
@@ -171,5 +288,9 @@
     <script src="js/hint.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/g2048.js"></script>
+    <script src="js/main2048.js"></script>
+    <!-- app.js 必须最后：等各游戏挂好钩子、初始化完，再接管计时和视图 -->
+    <script src="js/app.js"></script>
   </body>
 </html>

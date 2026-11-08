@@ -106,8 +106,24 @@ echo '*/10 * * * * root /usr/local/bin/color_lines_stats.sh >/dev/null 2>&1' \
 ### 不开网页时，命令行看
 
 ```bash
-column -t /var/lib/color-lines/daily.tsv   # 日期 / 匿名ID / 分钟 / 局数
+column -t /var/lib/color-lines/daily.tsv   # 日期 / 匿名ID / 分钟 / 局数 / 彩球连珠分钟 / 2048分钟
 ```
+
+### 加 2048 时的一次性升级（分游戏统计）
+
+心跳多带了一个 `g=lines|2048` 参数，日志格式和统计脚本都要换新的。页面代码照常 `git pull` 即可，
+另外在服务器上跑一次：
+
+```bash
+sudo /usr/local/bin/color_lines_pull.sh
+sudo cp /var/www/color-lines/deploy/color-lines-log.conf /etc/nginx/conf.d/
+sudo nginx -t && sudo systemctl reload nginx
+sudo cp /var/www/color-lines/scripts/color_lines_stats.sh /usr/local/bin/
+sudo /usr/local/bin/color_lines_stats.sh
+```
+
+旧数据不用迁移：`daily.tsv` 里只有 4 列的旧行、日志里没有第 4 列或为 `-` 的行，脚本都按彩球连珠算。
+顺序上先换 nginx 再换脚本、或者反过来都行，两边都兼容对方的旧格式。
 
 > 若早期装的旧版脚本报 `dubious ownership`，先一次性加白名单：
 > `sudo git config --global --add safe.directory /var/www/color-lines`

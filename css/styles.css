@@ -141,7 +141,7 @@ body {
 .view.active {
   display: flex;
 }
-#view-play {
+.game-view {
   gap: 32px;
   align-items: flex-start;
   justify-content: center;
@@ -841,9 +841,529 @@ body {
   line-height: 1.8;
   margin: 14px 0;
 }
+.lock-split {
+  color: var(--accent-2);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.lock-split:empty {
+  display: none;
+}
 .lock-countdown {
   color: var(--muted);
   font-size: 14px;
+}
+
+/* ============================================================
+   2048
+   方块位置只由 --r/--c 两个变量决定：逻辑层每块有固定 id，
+   改它的 --r/--c 就会顺着 transition 滑过去，合并/新块再单独做弹出。
+   ============================================================ */
+#view-2048 {
+  /* 棋盘不只限宽，也按屏幕高度收：笔记本屏幕矮（如 1366×657 可视区）时整盘也要一眼看全——
+     方向键被游戏占着，没法用键盘往下滚页面。200px ≈ 顶栏 + 上下留白 + 状态行 */
+  --board-max: min(540px, max(240px, calc(100vh - 200px)));
+  --board-max: min(540px, max(240px, calc(100svh - 200px)));
+}
+#view-2048 .board-wrap {
+  max-width: var(--board-max); /* 外框跟着棋盘一起收，侧栏才不会离得忽远忽近 */
+}
+.board-2048 {
+  --n: 4;
+  --gap: 10px;
+  --pad: 10px;
+  --tile-radius: 8px;
+  --slide: 110ms; /* 方块滑动时长：全站只在这里定义，main2048.js 读它来对齐合成时机 */
+  position: relative;
+  width: 100%;
+  max-width: var(--board-max);
+  padding: var(--pad);
+  background: var(--board-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow), inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  touch-action: none; /* 在棋盘上滑是操作，不是滚页面 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.g-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  gap: var(--gap);
+}
+.g-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--tile-radius);
+  background: var(--cell-empty);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+.g-tiles {
+  position: absolute;
+  inset: var(--pad); /* 与 .g-grid 的内容区重合 */
+  pointer-events: none;
+  transition: opacity 0.6s ease, filter 0.6s ease;
+}
+/* 推不动：整层往那个方向顶一下 */
+.g-tiles.nudge {
+  animation: nudge 0.2s ease;
+}
+@keyframes nudge {
+  40% {
+    transform: translate(var(--nx), var(--ny));
+  }
+}
+/* 撤销：整盘快速淡入，表示"退回去了" */
+.g-tiles.rewind {
+  animation: rewind 0.22s ease-out;
+}
+@keyframes rewind {
+  from {
+    opacity: 0.35;
+    transform: scale(0.985);
+  }
+}
+/* 结束：结算弹出前棋盘先暗下去；关掉弹层后也一眼看出这局已经结束 */
+.board-2048.ended .g-tiles {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+.tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc((100% - (var(--n) - 1) * var(--gap)) / var(--n));
+  aspect-ratio: 1 / 1;
+  /* 百分比相对方块自身边长：第 c 列 = c 个（边长 + 缝） */
+  transform: translate(
+    calc(var(--c) * (100% + var(--gap))),
+    calc(var(--r) * (100% + var(--gap)))
+  );
+  transition: transform var(--slide) ease-out;
+  will-change: transform;
+  container-type: inline-size; /* 数字用 cqw 随方块大小缩放 */
+}
+.tile-face {
+  position: relative; /* 给合成光晕 ::after 定位 */
+  width: 100%;
+  height: 100%;
+  border-radius: var(--tile-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 数字用无衬线：衬线体的旧式数字高低错落，2048 这种一眼要读的数不好认 */
+  font-family: var(--sans);
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1;
+  font-size: 40px; /* 不支持容器单位时的兜底 */
+  font-size: 44cqw;
+  background: var(--tile-bg);
+  color: var(--tile-fg);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.35),
+    var(--tile-glow, 0 0 0 transparent);
+}
+.tile-face[data-len='3'] {
+  font-size: 32px;
+  font-size: 36cqw;
+}
+.tile-face[data-len='4'] {
+  font-size: 26px;
+  font-size: 28cqw;
+}
+.tile-face[data-len='5'] {
+  font-size: 20px;
+  font-size: 22cqw;
+}
+.tile-face.appear {
+  animation: tile-appear 0.16s ease-out;
+}
+.tile-face.pop {
+  animation: tile-pop 0.18s ease-out;
+}
+@keyframes tile-appear {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+@keyframes tile-pop {
+  50% {
+    transform: scale(1.14);
+  }
+}
+/* 合出 128 以上：一圈金光从方块边上扩散开；1024 以上圈更大、更久。
+   用 ::after 单独画，不碰方块自身的阴影和缩放动画 */
+.tile-face.glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: tile-ring 0.55s ease-out forwards;
+}
+.tile-face.glow-big::after {
+  animation: tile-ring-big 0.9s ease-out forwards;
+}
+@keyframes tile-ring {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 224, 150, 0.75);
+  }
+  to {
+    box-shadow: 0 0 0 12px rgba(255, 224, 150, 0);
+  }
+}
+@keyframes tile-ring-big {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 230, 160, 0.9), 0 0 24px 4px rgba(255, 215, 120, 0.6);
+  }
+  to {
+    box-shadow: 0 0 0 26px rgba(255, 230, 160, 0), 0 0 40px 10px rgba(255, 215, 120, 0);
+  }
+}
+
+/* 方块配色：小数是象牙/沙色（在深底上最醒目），中段暖橙到朱红，
+   128 起进入金色、越大光晕越强，2048 之后换玉色、紫晶。
+   数字本身是主信息，颜色只做"大概到哪一档"的冗余提示；字色对比度均 ≥ 4.5 */
+.t2 {
+  --tile-bg: #ebe3d4;
+  --tile-fg: #3b3024;
+}
+.t4 {
+  --tile-bg: #e3d2b2;
+  --tile-fg: #3b3024;
+}
+.t8 {
+  --tile-bg: #e3a86b;
+  --tile-fg: #2b1d10;
+}
+.t16 {
+  --tile-bg: #dc8a4f;
+  --tile-fg: #2b1d10;
+}
+.t32 {
+  --tile-bg: #d46a48;
+  --tile-fg: #2b1d10;
+}
+.t64 {
+  --tile-bg: #c4483a;
+  --tile-fg: #fff6ea;
+}
+.t128 {
+  --tile-bg: #ecd07e;
+  --tile-fg: #2b1d10;
+  --tile-glow: 0 0 10px rgba(236, 208, 126, 0.18);
+}
+.t256 {
+  --tile-bg: #e9c766;
+  --tile-fg: #2b1d10;
+  --tile-glow: 0 0 12px rgba(236, 200, 100, 0.26);
+}
+.t512 {
+  --tile-bg: #e6bd52;
+  --tile-fg: #2b1d10;
+  --tile-glow: 0 0 14px rgba(236, 190, 80, 0.34);
+}
+.t1024 {
+  --tile-bg: #e2b33c;
+  --tile-fg: #2b1d10;
+  --tile-glow: 0 0 18px rgba(236, 180, 60, 0.42);
+}
+.t2048 {
+  --tile-bg: #f2d35f;
+  --tile-fg: #2b1d10;
+  --tile-glow: 0 0 0 2px rgba(255, 236, 170, 0.55), 0 0 26px rgba(242, 211, 95, 0.55);
+}
+.t4096 {
+  --tile-bg: #6aa97f;
+  --tile-fg: #10241a;
+}
+.t8192 {
+  --tile-bg: #8a64c4;
+  --tile-fg: #fff6ea;
+}
+.tbig {
+  --tile-bg: #2c2620;
+  --tile-fg: var(--accent-2);
+  --tile-glow: 0 0 0 2px var(--accent);
+}
+
+/* 得分：+N 贴着分数数字的右上角冒出来，数字本身轻轻一跳 */
+.gain-host {
+  position: relative;
+  display: inline-block;
+}
+.score-num {
+  display: inline-block;
+}
+.score-num.bump {
+  animation: score-bump 0.22s ease-out;
+}
+@keyframes score-bump {
+  40% {
+    transform: scale(1.1);
+    color: var(--accent-2);
+  }
+}
+.score-gain {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 4px;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent-2);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: gain-up 0.9s ease-out forwards;
+}
+@keyframes gain-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-26px);
+  }
+}
+/* 本局分数超过历史最高时，"最高分"跟着亮起来 */
+.best-wrap.record b {
+  color: var(--accent-2);
+}
+.best-wrap.record::after {
+  content: '新纪录';
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #2a2114;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+}
+/* 窄屏专用：分数挪到棋盘上方（侧栏在首屏外） */
+.score-inline {
+  display: none;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+  color: var(--muted);
+  font-size: 13px;
+}
+.score-inline b {
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 22px;
+  margin-left: 4px;
+}
+.score-inline .score-gain {
+  font-size: 15px;
+}
+
+/* 方向键：给不习惯键盘/滑屏的人一个看得见的入口 */
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-areas:
+    '. up .'
+    'left down right';
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.dpad .btn {
+  margin-top: 0;
+  padding: 10px 0;
+  font-size: 15px;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+}
+/* 键盘/滑屏走一步时对应的方向键亮一下，把"按键"和"方向"对上号 */
+.dpad .btn.pressed {
+  border-color: var(--accent);
+  color: var(--accent-2);
+  background: var(--accent-dim);
+}
+/* 连点方向键/撤销时，别让手机把双击当成放大 */
+#view-2048 .btn {
+  touch-action: manipulation;
+}
+.dpad-up {
+  grid-area: up;
+}
+.dpad-left {
+  grid-area: left;
+}
+.dpad-down {
+  grid-area: down;
+}
+.dpad-right {
+  grid-area: right;
+}
+.howto {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 12px 0 4px;
+}
+
+/* ---- 2048 新手教程 ---- */
+/* 卡片可能比矮屏还高（手机横屏）：弹层自己滚动，卡片用 margin:auto 居中，
+   超高时从顶部排起，不会像 align-items:center 那样把上半截挤出屏幕 */
+.overlay.tut {
+  overflow-y: auto;
+  padding: 16px 0;
+}
+.tut-card {
+  margin: auto;
+  width: min(420px, 92vw);
+  min-width: 0;
+  padding: 22px 28px 24px;
+  text-align: left;
+}
+.tut-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.tut-dots {
+  display: flex;
+  gap: 6px;
+}
+.tut-dots i {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.tut-dots i.past {
+  background: rgba(200, 163, 92, 0.5);
+}
+.tut-dots i.on {
+  background: var(--accent);
+}
+.tut-skip {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0 4px 8px;
+}
+.tut-skip:hover {
+  color: var(--text);
+}
+.tut-title {
+  font-family: var(--serif);
+  font-size: 21px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+.tut-text {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text);
+  margin: 8px 0 14px;
+}
+.board-2048.board-mini {
+  max-width: 264px;
+  margin: 0 auto;
+  --gap: 7px;
+  --pad: 7px;
+  --tile-radius: 6px;
+}
+.tut-arrows {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.tut-arrows .btn {
+  width: 52px;
+  margin-top: 0;
+  padding: 8px 0;
+  font-size: 14px;
+}
+/* 第一步里圈出"新冒出来的那块" */
+.tile-face.tut-mark {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 2px;
+  animation: tut-mark 1s ease-in-out infinite;
+}
+@keyframes tut-mark {
+  50% {
+    outline-color: rgba(221, 189, 124, 0.2);
+  }
+}
+.tut-feedback {
+  min-height: 3.4em; /* 两行左右的位置先占好，文字出现时卡片不跳 */
+  margin: 12px 0 4px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.tut-feedback.win {
+  color: var(--jade);
+}
+.tut-actions {
+  display: flex;
+  gap: 10px;
+}
+.tut-actions .btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 15px;
+}
+.tut-actions .btn-primary:disabled {
+  filter: saturate(0.3);
+}
+/* 最后一步：数字一路长大的示意 + 四条要点 */
+.tut-goal {
+  margin: 18px 0 18px;
+}
+.tut-ladder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.tut-ladder .tile-face {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  font-size: 18px;
+}
+.tut-ladder .t512,
+.tut-ladder .t2048 {
+  font-size: 13px;
+}
+.tut-ladder i {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+}
+.tut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tut-list li {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.tut-list li:last-child {
+  border-bottom: none;
+}
+.tut-list b {
+  color: var(--accent-2);
+  font-weight: 600;
+  margin-right: 10px;
 }
 
 /* ============ 手机 / 窄屏适配 ============ */
@@ -851,7 +1371,7 @@ body {
   .view {
     padding: 14px;
   }
-  #view-play {
+  .game-view {
     flex-direction: column;
     align-items: stretch;
     gap: 18px;
@@ -863,8 +1383,36 @@ body {
     max-width: none;
     --grid-pad: 8px;
   }
-  .next-inline {
+  .next-inline,
+  .score-inline {
     display: flex;
+  }
+  #view-2048 {
+    /* 竖屏由宽度决定；横屏时按高度收，整盘仍在一屏内 */
+    --board-max: max(260px, calc(100vh - 230px));
+    --board-max: max(260px, calc(100svh - 230px));
+  }
+  #view-2048 .board-wrap {
+    max-width: none; /* 窄屏下分数行照旧铺满，棋盘自己按 --board-max 收 */
+  }
+  .board-2048 {
+    --gap: 8px;
+    --pad: 8px;
+  }
+  .score-panel-2048 {
+    display: none; /* 棋盘上方已有一行分数，侧栏不再重复，撤销等按钮能往上挪进首屏 */
+  }
+  /* 手机上主要靠滑，方向键退居其次：撤销/音效挪到它上面，小屏也能在首屏够到撤销 */
+  .dpad-panel {
+    display: flex;
+    flex-direction: column;
+  }
+  .dpad-panel .controls-row {
+    order: -1;
+    margin-bottom: 10px;
+  }
+  .dpad-panel .dpad {
+    margin-bottom: 0;
   }
   .sidebar {
     width: 100%;
@@ -909,6 +1457,20 @@ body {
   }
   .overlay-score {
     font-size: 56px;
+  }
+}
+
+/* 三个标签加标题一行放不下：标签另起一行，铺满宽度 */
+@media (max-width: 440px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .tabs {
+    width: 100%;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px 6px;
   }
 }
 
@@ -959,6 +1521,17 @@ body {
   .ball {
     forced-color-adjust: none; /* 保留棋子本色，否则被强制成单色不可辨 */
   }
+  .board-2048 {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+  .g-cell {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+  .tile-face {
+    forced-color-adjust: none; /* 方块保留本色和字色 */
+  }
 }
 
 /* 减弱动态效果：关掉装饰性动画。选中态有静态高亮环兜底，不丢信息 */
@@ -973,5 +1546,23 @@ body {
   }
   .ball.floating {
     transition: none !important; /* 走子逐格跳到位，不平滑滑行 */
+  }
+  .board-2048 {
+    --slide: 0ms; /* 2048 方块直接跳到位，main2048.js 读到 0 就当场换上合成块 */
+  }
+  .tile-face.appear,
+  .tile-face.pop,
+  .tile-face.glow::after,
+  .tile-face.tut-mark,
+  .g-tiles.nudge,
+  .g-tiles.rewind,
+  .score-num.bump {
+    animation: none;
+  }
+  .g-tiles {
+    transition: none; /* 结束时直接变暗，不渐变 */
+  }
+  .score-gain {
+    animation: gain-up 0.01ms forwards;
   }
 }

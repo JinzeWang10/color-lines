@@ -4,16 +4,9 @@
 (function (global) {
   'use strict';
 
-  const { Game, Recorder, ui, buildFrames, sound, stats, PlayLimit, Beacon } = global.CL;
+  const { Game, Recorder, ui, buildFrames, sound, stats } = global.CL;
   const $ = (id) => document.getElementById(id);
-
-  // 防沉迷计时器（仅在游戏页 + 页面可见时累计）
-  const limit = new PlayLimit();
-  limit.isActive = () =>
-    $('view-play').classList.contains('active') && document.visibilityState === 'visible';
-
-  // 匿名打点，蹭上面这个计时器的口径（离线单文件版会自动关掉）
-  const beacon = new Beacon();
+  const app = () => global.CL.app; // 防沉迷、打点、视图切换都在 app.js（最后加载，用到时再取）
 
   // ===================== 游戏视图 =====================
   const play = {
@@ -80,12 +73,7 @@
   function onCellClick(i) {
     const g = play.game;
     if (!g || g.over || play.animating) return;
-    if (limit.isLocked()) {
-      showLock();
-      return;
-    }
-    limit.bump();
-    sound.unlock();
+    if (!app().guard()) return;
 
     // 再点已选中的球：取消选中
     if (play.selected === i) {
@@ -161,8 +149,8 @@
 
   function showHint() {
     const g = play.game;
-    if (!g || g.over || play.animating || limit.isLocked()) return;
-    limit.bump();
+    if (!g || g.over || play.animating) return;
+    if (!app().guard()) return;
     const best = global.CL.hint.bestMove(g);
     if (!best) {
       setStatus('暂时没有可走的提示。');
@@ -181,8 +169,8 @@
   }
 
   function undo() {
-    if (!play.undoSnapshot || play.animating || limit.isLocked()) return;
-    limit.bump();
+    if (!play.undoSnapshot || play.animating) return;
+    if (!app().guard()) return;
     play.game.restore(play.undoSnapshot);
     play.recorder.truncateTo(play.undoEventCount);
     play.undoSnapshot = null;
@@ -315,19 +303,9 @@
     $('overlay').classList.add('hidden');
   }
 
-  // ---- 防沉迷锁定 ----
-  function fmtCountdown(ms) {
-    const totalMin = Math.ceil(ms / 60000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return h ? `${h} 小时 ${m} 分钟` : `${m} 分钟`;
-  }
-
-  function showLock() {
-    $('lock-text').innerHTML = `已经玩了 ${limit.limitMinutes()} 分钟，休息一下眼睛，<br>明天再来玩吧！`;
-    $('lock-countdown').textContent = `距离明天还有 ${fmtCountdown(limit.msUntilReset())}`;
+  // ---- 防沉迷锁定（遮罩由 app.js 弹，这里收拾本游戏的状态）----
+  function onLock() {
     hideOverlay();
-    $('lock-overlay').classList.remove('hidden');
     play.selected = null;
     setStatus('今天的游戏时间到啦，明天再来。', 'over');
   }
@@ -519,10 +497,6 @@
   }
 
   // ===================== 绑定 =====================
-  function updateSoundBtn() {
-    $('btn-sound').textContent = sound.isMuted() ? '🔇 静音' : '🔊 音效';
-  }
-
   // ---- 颜色图案开关 ----
   function patternEnabled() {
     return localStorage.getItem('color-lines.pattern') !== '0';
@@ -541,27 +515,9 @@
   }
 
   function bind() {
-    document.querySelectorAll('.tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-        document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-        tab.classList.add('active');
-        const view = tab.dataset.view;
-        $('view-' + view).classList.add('active');
-        if (view === 'review') {
-          renderSessionList();
-          if (!review.session) clearReplay();
-        }
-      });
-    });
-
     $('btn-new').addEventListener('click', newGame);
     $('btn-hint').addEventListener('click', showHint);
     $('btn-undo').addEventListener('click', undo);
-    $('btn-sound').addEventListener('click', () => {
-      sound.toggleMute();
-      updateSoundBtn();
-    });
     $('btn-pattern').addEventListener('click', togglePattern);
     $('btn-export-cur').addEventListener('click', () => {
       if (play.recorder.session) Recorder.exportSession(play.recorder.session.id);
@@ -633,27 +589,25 @@
     });
   }
 
-  function setupLimit() {
-    limit.onWarn = (rem) => {
-      setStatus(`再玩 ${Math.ceil(rem / 60)} 分钟就要休息啦，注意时间~`, 'over');
-    };
-    limit.onLock = () => showLock();
-    limit.onTick = (seconds) => {
-      beacon.tick(seconds);
-      if (limit.isLocked() && !$('lock-overlay').classList.contains('hidden')) {
-        $('lock-countdown').textContent = `距离明天还有 ${fmtCountdown(limit.msUntilReset())}`;
+  // ---- 交给 app.js 调度的钩子 ----
+  global.CL.games = global.CL.games || {};
+  global.CL.games.lines = {
+    onShow(view) {
+      if (view === 'review') {
+        renderSessionList();
+        if (!review.session) clearReplay();
       }
-    };
-    limit.start();
-    if (limit.isLocked()) showLock();
-  }
+    },
+    onWarn(rem) {
+      setStatus(`再玩 ${Math.ceil(rem / 60)} 分钟就要休息啦，注意时间~`, 'over');
+    },
+    onLock,
+  };
 
   document.addEventListener('DOMContentLoaded', () => {
     bind();
-    updateSoundBtn();
     applyPattern();
     clearReplay();
     newGame();
-    setupLimit();
   });
 })(window);

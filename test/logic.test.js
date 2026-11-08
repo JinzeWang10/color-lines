@@ -201,6 +201,63 @@ lim4.locked = true;
 lim4._tick();
 ok(lim4.state.seconds <= 1 && !lim4.locked, '跨天清零并解除锁定');
 
+// 14b. 分游戏记账：共用一份上限，各自记秒数
+localStorage._d = {};
+let lockedG = false;
+let limG = new CL.PlayLimit({ dailyLimitSec: 5, idlePauseSec: 9999 });
+let playing = 'lines';
+limG.currentGame = () => playing;
+limG.onLock = () => (lockedG = true);
+limG.bump();
+limG._tick();
+limG._tick();
+playing = '2048';
+limG._tick();
+limG._tick();
+ok(limG.byGame().lines === 2 && limG.byGame()['2048'] === 2, '各游戏分开累计秒数');
+ok(limG.state.seconds === 4 && !lockedG, '总数是各游戏之和，未到上限');
+limG._tick();
+ok(lockedG, '两个游戏合计到上限才锁（共用一份上限）');
+let reloaded = new CL.PlayLimit({ dailyLimitSec: 5 });
+ok(reloaded.byGame()['2048'] === 3 && reloaded.isLocked(), '分游戏秒数和锁定状态跨刷新保留');
+
+// 14c. 旧存档（还没分游戏时）当天的秒数全算彩球连珠
+const now = new Date();
+localStorage._d = {
+  'color-lines.playtime': JSON.stringify({
+    date: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`,
+    seconds: 600,
+  }),
+};
+let limOld = new CL.PlayLimit();
+ok(limOld.state.seconds === 600 && limOld.byGame().lines === 600, '旧格式存档迁移：时间记在彩球连珠名下');
+
+// ---- 打点 beacon.js：分游戏心跳 ----
+global.location = { protocol: 'https:' };
+let sentUrls = [];
+global.Image = function () {
+  return {
+    set src(u) {
+      sentUrls.push(u);
+    },
+  };
+};
+require(path.join(base, 'beacon.js'));
+localStorage._d = {};
+let bc = new CL.Beacon();
+bc.tick({ lines: 119 }, 'lines'); // 首次只定基线，不补发
+ok(sentUrls.length === 0, '心跳：首次 tick 只记基线');
+bc.tick({ lines: 120 }, 'lines');
+ok(sentUrls.length === 1 && /[?&]g=lines(&|$)/.test(sentUrls[0]), '心跳：跨整分钟发一次，带游戏 id');
+bc.tick({ lines: 120, 2048: 1 }, '2048'); // 2048 第一次出现：定基线
+for (let s = 2; s <= 60; s++) bc.tick({ lines: 120, 2048: s }, '2048');
+ok(sentUrls.length === 2 && /[?&]g=2048(&|$)/.test(sentUrls[1]), '心跳：2048 满一分钟单独发');
+bc.tick({ lines: 180, 2048: 60 }, null); // 别的标签页把彩球连珠玩过了一分钟
+ok(sentUrls.length === 2, '心跳：不是本页数的那一分钟不发（多开标签页不重复计）');
+bc.tick({ lines: 1 }, 'lines'); // 跨天清零
+bc.tick({ lines: 60 }, 'lines');
+ok(sentUrls.length === 3, '心跳：跨天清零后重定基线，照常发');
+
 // ---- 提示引擎 hint.js ----
 require(path.join(base, 'hint.js'));
 
